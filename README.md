@@ -60,7 +60,9 @@ npm install
    The schema is safe to run again. It enables Row Level Security with no policies and revokes
    access from `anon` and `authenticated`, so only the server, using the service role key, can
    read or write.
-2. **Seed.** With `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in your shell or `.env.local`:
+2. **Seed.** Easiest: paste `supabase/seed.sql` into the SQL editor and run it (safe to re-run;
+   regenerate it with `npx tsx scripts/seed-sql.ts` if `seed.json` changes). Or, from a terminal,
+   with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in your shell or `.env.local`:
    ```bash
    set -a; source .env.local; set +a
    npm run seed                 # loads seed.json; existing documents are kept
