@@ -188,19 +188,23 @@ var HEAD='<thead><tr><th class="rn">#</th><th>Name</th><th>Kind</th><th>Status</
 function rosterView(list:any){
   if(!S.loaded)return '<p class="hint">Loading agents…</p>';
   if(!list.length)return emptyHTML();
-  var T=buildTree(list),n=0,filtering=!!(S.q.trim()||S.flt!=='all'),memo: any={},out='';
+  var T=buildTree(list),n=0,memo: any={},out='';
   function nx(){return ++n}
   function vis(a:any){if(memo[a.id]!=null)return memo[a.id];var v=passF(a)||(T.kids[a.id]||[]).some(vis);memo[a.id]=v;return v}
+  /* Every agent always has its own row, indented under its manager; the caret opens only that
+     agent's goals, KRAs, KPIs and todos. "seen" guards against a reports-to loop. */
+  var seen: any={};
   function walk(a:any,d:any){
-    if(!vis(a))return;
+    if(!vis(a)||seen[a.id])return;
+    seen[a.id]=1;
     var all=T.kids[a.id]||[],open=!!S.open[a.id];
     out+=agentRow(a,d,nx(),all.length,open);
     if(open)out+=subRows(a,d,nx);
-    if(open||filtering)all.filter(vis).forEach(function(k:any){walk(k,d+1)});
+    all.filter(vis).forEach(function(k:any){walk(k,d+1)});
   }
   T.roots.forEach(function(r:any){walk(r,0)});
   if(!out)return toolbarHTML(true)+'<div class="empty"><h3>Nothing matches</h3><p>Clear the search or change the filter.</p></div>';
-  return toolbarHTML(true)+'<div class="sheetwrap"><table class="sheet">'+HEAD+'<tbody>'+out+'</tbody></table></div><p class="hint">Click a name to expand its goals, KRAs, KPIs, todos and reports. Dates, statuses and readings are editable in the grid.</p>';
+  return toolbarHTML(true)+'<div class="sheetwrap"><table class="sheet">'+HEAD+'<tbody>'+out+'</tbody></table></div><p class="hint">Every agent has a row, indented under its manager. Click a name to expand its goals, KRAs, KPIs and todos. Dates, statuses and readings are editable in the grid.</p>';
 }
 function todosView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';

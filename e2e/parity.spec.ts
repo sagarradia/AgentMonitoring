@@ -2,7 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
 
 /* Parity check: the original agent-desk.html (with a stub window.claude holding the same data)
-   and the ported app must render the same markup for the same clicks. */
+   and the ported app must render the same markup for the same clicks.
+   One intended difference: the port lists every agent even when its manager is collapsed (the
+   original only showed heads until expanded), so the first comparison is made with Expand all,
+   where both pages show every agent. The grid's hint line was reworded to match. */
+const NEW_HINT = 'Every agent has a row, indented under its manager. Click a name to expand its goals, KRAs, KPIs and todos.';
+const OLD_HINT = 'Click a name to expand its goals, KRAs, KPIs, todos and reports.';
 
 const PASSWORD = 'e2e-password-not-real';
 const ORIGINAL = 'file://' + path.resolve('agent-desk.html');
@@ -40,7 +45,6 @@ const dom = (page: Page) => page.evaluate(() => ({
 }));
 
 const steps: [string, (p: Page) => Promise<void>][] = [
-  ['roster', async () => {}],
   ['expand all', async (p) => { await p.click('[data-act="expand-all"]') }],
   ['todos tab', async (p) => { await p.click('[data-tab="tasks"]') }],
   ['goals & KPIs tab', async (p) => { await p.click('[data-tab="score"]') }],
@@ -66,6 +70,7 @@ test('the port renders the same markup as the original page', async ({ browser }
     await act(orig);
     await act(port);
     const [a, b] = [await dom(orig), await dom(port)];
+    b.app = b.app.replace(NEW_HINT, OLD_HINT);
     expect(a.app.length, name + ' rendered something').toBeGreaterThan(500);
     expect.soft(b.app, name + ' (#app)').toBe(a.app);
     expect.soft(b.overlay, name + ' (#overlay)').toBe(a.overlay);
