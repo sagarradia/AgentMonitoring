@@ -11,7 +11,7 @@ original file and this app with the same data and checks that the markup is iden
 
 | Artifact capability (`window.claude`) | Here |
 |---|---|
-| `db` (agents, projects, chats, meta/repos), `onSnapshot` | Supabase Postgres via `/api/db/...` route handlers; the page fetches on load and polls every 15 s |
+| `db` (agents, projects, chats, meta/repos), `onSnapshot` | Postgres (Neon via Vercel, or Supabase) through `/api/db/...` route handlers; the page fetches on load and polls every 15 s |
 | `sample` (streamed chat) and `sample.json` | `POST /api/chat` (streams from the Anthropic API) and `POST /api/extract` (JSON), server side only |
 | `mcp` `list_repos` ("Sync from GitHub") | `GET /api/repos`, which calls GitHub REST `GET /user/repos` with `GITHUB_TOKEN` |
 | `downloads` (CSV) | A normal browser Blob download |
@@ -28,7 +28,7 @@ app/                 pages (/, /login) and route handlers under app/api
 components/desk.ts   the view: render functions and event handlers ported from the original page
 lib/                 typed logic: model (dates, flags, tree), templates, prompts, csv, seed
 lib/client/runtime.ts  browser replacements for db / sample / mcp / downloads
-lib/server/          store (Supabase, or a local file), auth, rate limit, Claude client
+lib/server/          store (Postgres/Neon, Supabase, or a local file), auth, rate limit, Claude client
 proxy.ts             login wall in front of every page and API route
 supabase/schema.sql  tables agents, projects, chats, meta (id text pk, data jsonb, updated_at)
 scripts/seed.ts      loads seed.json
@@ -42,11 +42,17 @@ Copy `.env.example` to `.env.local` and fill it in. Never commit real values (`.
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key. Used only by `/api/chat` and `/api/extract` on the server. Without it, chat and "Generate with Claude" are hidden, as they were when the artifact had no Claude access. |
 | `GITHUB_TOKEN` | GitHub token with read-only access: a fine-grained token with **Metadata: read** on the repositories you want listed (or a classic token with no scopes for public repos only). Without it, "Sync from GitHub" is hidden. |
-| `SUPABASE_URL` | Your project URL, `https://<ref>.supabase.co`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | The service role key (Project Settings → API). Server side only. It bypasses RLS, and the tables give no access to the anon key. |
+| `DATABASE_URL` | Postgres connection string. Set automatically when you add Neon to the project in Vercel (Storage → Neon). `POSTGRES_URL` is accepted too. |
+| `SUPABASE_URL` | Only if you use Supabase instead of Neon: your project URL, `https://<ref>.supabase.co`. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Only with Supabase: the service role key (Project Settings → API). Server side only. It bypasses RLS, and the tables give no access to the anon key. |
 | `APP_PASSWORD` | The shared login password. If it is unset, nothing can be reached. Changing it signs everyone out. |
 
-Optional: `ANTHROPIC_MODEL` overrides the model (default `claude-opus-5-5`).
+Optional: `ANTHROPIC_MODEL` overrides the model (default `claude-opus-5-5`); `AUTO_SEED=off`
+turns off loading the seed on first start.
+
+**First start.** With `DATABASE_URL`, the app creates its four tables itself. With any database,
+the first request loads `seed.json` (39 agents and the project brief), skips documents that
+already exist, and records `meta/seeded` so it never runs again. Agents you delete stay deleted.
 For local development without Supabase, `DB_DRIVER=file` stores documents in `.data/db.json`
 (`DB_FILE` changes the path). The file driver refuses to run on Vercel.
 
@@ -56,26 +62,21 @@ For local development without Supabase, `DB_DRIVER=file` stores documents in `.d
 npm install
 ```
 
-1. **Database.** In the Supabase dashboard, open the SQL editor, paste `supabase/schema.sql` and run it.
-   The schema is safe to run again. It enables Row Level Security with no policies and revokes
-   access from `anon` and `authenticated`, so only the server, using the service role key, can
-   read or write.
-2. **Seed.** Easiest: paste `supabase/seed.sql` into the SQL editor and run it (safe to re-run;
-   regenerate it with `npx tsx scripts/seed-sql.ts` if `seed.json` changes). Or, from a terminal,
-   with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in your shell or `.env.local`:
-   ```bash
-   set -a; source .env.local; set +a
-   npm run seed                 # loads seed.json; existing documents are kept
-   npm run seed -- --force      # overwrite documents that already exist
-   ```
-   Agents are keyed by their `id`. Projects are keyed by project id. The shipped `seed.json` has a
-   single `{ "brief": ... }` rather than projects keyed by id, so the seed script attaches that brief
-   to the project most seed agents belong to (`Skybirds-Empyrean-Avenue__familyvault`).
+1. **Database.**
+   - **Neon (recommended on Vercel):** nothing to do. Tables and seed data are created on first start.
+   - **Supabase:** in the SQL editor, run `supabase/schema.sql`, then `supabase/seed.sql`. Both are
+     safe to run again. The schema enables Row Level Security with no policies and revokes access
+     from `anon` and `authenticated`, so only the server (service role key) can read or write.
+   - To seed from a terminal instead: `npm run seed` (add `-- --force` to overwrite). It uses the
+     same environment variables as the app.
+2. **Seed data.** Agents are keyed by `id`, projects by project id. The shipped `seed.json` has a
+   single `{ "brief": ... }` rather than projects keyed by id, so the seed attaches that brief to the
+   project most seed agents belong to (`Skybirds-Empyrean-Avenue__familyvault`).
 3. **Run.**
    ```bash
    npm run dev                  # http://localhost:3000, sign in with APP_PASSWORD
    ```
-   Without Supabase: `DB_DRIVER=file npm run seed`, then `DB_DRIVER=file APP_PASSWORD=... npm run dev`.
+   Without a database: `DB_DRIVER=file npm run seed`, then `DB_DRIVER=file APP_PASSWORD=... npm run dev`.
 
 ## Tests
 
@@ -93,27 +94,27 @@ calls to Supabase, Anthropic or GitHub.
 
 If Playwright's bundled Chromium is missing, set `PW_CHROMIUM=/path/to/chromium`.
 
-## Deploy (Vercel)
+## Deploy (Vercel + Neon)
 
-```bash
-npm i -g vercel
-vercel login
-vercel link                                   # create or link the project
-vercel env add ANTHROPIC_API_KEY production
-vercel env add GITHUB_TOKEN production
-vercel env add SUPABASE_URL production
-vercel env add SUPABASE_SERVICE_ROLE_KEY production
-vercel env add APP_PASSWORD production
-vercel --prod
-```
+From the Vercel dashboard:
 
-Each `vercel env add` prompts for its value, so values don't end up in your shell history. Add the
-same variables for `preview` if you use preview deployments. Every preview URL is behind the same
-login. Run the schema and the seed against the production Supabase project before the first visit.
+1. **Add New → Project**, import `sagarradia/AgentMonitoring` (production branch `main`).
+   Vercel detects Next.js.
+2. In **Environment Variables**, add `ANTHROPIC_API_KEY`, `GITHUB_TOKEN` and `APP_PASSWORD`, then click **Deploy**.
+3. In the project, open **Storage → Create Database → Neon** and connect it to the project
+   (all environments). This adds `DATABASE_URL`.
+4. **Deployments → ⋯ → Redeploy** so the new variable is picked up. Open the URL and sign in. The
+   first page load creates the tables and loads the seed.
+
+Or from the CLI: `vercel link`, `vercel env add <NAME> production` for each variable,
+`vercel integration add neon`, then `vercel --prod`.
+
+Every preview deployment is behind the same login. If previews should not share the production
+database, connect a separate Neon branch to the Preview environment.
 
 ## Security notes
 
-- The Anthropic key, the GitHub token and the Supabase service role key are only read on the
+- The Anthropic key, the GitHub token and the database credentials are only read on the
   server. The browser never sees them, and none are in the repository.
 - Request bodies and chat text are never logged. Errors are logged as route, error class and
   HTTP status only.

@@ -4,9 +4,11 @@ import { defineConfig } from '@playwright/test';
    (DB_DRIVER=file), seeded fresh from seed.json. No Supabase, Anthropic or GitHub calls are made.
    Run `npm run build` first. */
 const PORT = 3210;
+/* E2E_DATABASE_URL runs the same pass against a real Postgres instead (tables are created and
+   seeded by the app itself on first request). */
+const pg = process.env.E2E_DATABASE_URL;
 const env = {
-  DB_DRIVER: 'file',
-  DB_FILE: '.data/e2e.json',
+  ...(pg ? { DATABASE_URL: pg, DB_DRIVER: '' } : { DB_DRIVER: 'file', DB_FILE: '.data/e2e.json' }),
   APP_PASSWORD: 'e2e-password-not-real',
   // Placeholders so the page shows Talk, Sync and Generate as it would when configured.
   // The tests never click anything that would call GitHub or Anthropic.
@@ -23,7 +25,7 @@ export default defineConfig({
     launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},
   },
   webServer: {
-    command: `rm -f .data/e2e.json && tsx scripts/seed.ts && next start -p ${PORT}`,
+    command: pg ? `next start -p ${PORT}` : `rm -f .data/e2e.json && tsx scripts/seed.ts && next start -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
     env,
     reuseExistingServer: false,
