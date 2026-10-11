@@ -9,6 +9,7 @@ import {
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
+import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefaults, extrasPrompt, applyExtras } from '@/lib/wizard-options';
 import { createDb, createSample, createDownloads, listRepos, loadConfig, type DB as DBT, type Sample, type Downloads } from '@/lib/client/runtime';
 import type { Repo } from '@/lib/types';
 
@@ -372,6 +373,18 @@ function chatHTML(){
   return h+'</aside>';
 }
 
+/* Step 1 "More details": defaults are pre-selected from the task; untick what does not apply. */
+function extrasHTML(x:any){
+  var box=function(kind:string,opts:readonly string[],sel:string[]){return '<div class="checks">'+opts.map(function(o,i){var id='wx-'+kind+'-'+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-wcheck="'+kind+'" value="'+esc(o)+'"'+(sel.indexOf(o)>=0?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div>'};
+  var h='<section class="more" aria-label="More details"><h3>More details · defaults chosen for you</h3>';
+  h+='<p class="hint">Pre-selected from the task. Keep them as they are or untick what does not apply. These are recorded on the role; this app does not connect to the services.</p>';
+  h+='<div class="fld"><label>Tools and access</label>'+box('tools',TOOL_OPTIONS,x.tools)+'<input type="text" id="wx-other" data-wx="otherTools" value="'+esc(x.otherTools)+'" placeholder="Other tools, comma separated" aria-label="Other tools"></div>';
+  h+='<div class="fld"><label>Needs your approval before</label>'+box('approvals',APPROVAL_OPTIONS,x.approvals)+'</div>';
+  h+='<div class="two"><div class="fld"><label for="wx-cadence">Status updates</label><select id="wx-cadence" data-wx="cadence" style="width:100%">'+CADENCES.map(function(c){return '<option value="'+esc(c)+'"'+(x.cadence===c?' selected':'')+'>'+esc(c)+'</option>'}).join('')+'</select></div>'
+   +'<div class="fld"><label for="wx-reports">Reports to</label><input type="text" id="wx-reports" data-wx="reportsTo" value="'+esc(x.reportsTo)+'" placeholder="Leave blank to use the draft"></div></div>';
+  h+='<div class="fld"><label for="wx-notes">Anything else it should know</label><textarea id="wx-notes" data-wx="notes" rows="2" placeholder="Optional. Saved to the agent\'s memory.">'+esc(x.notes)+'</textarea></div>';
+  return h+'</section>';
+}
 function wizardHTML(){
   var w=S.wizard;if(!w)return '';
   var h='<div class="scrim" data-act="wizard-close"></div><div class="modal" role="dialog" aria-label="Build an agent"><div class="modal-head"><h2>Build an agent</h2><p>'+(w.step===1?'Accept a project and describe the task. The agent is drafted for you to review.':'Review and edit the draft. Nothing is created until you confirm.')+'</p><div class="steps"><span>'+(w.step===1?'<b>1 Project and task</b>':'1 Project and task')+'</span><span>→</span><span>'+(w.step===2?'<b>2 Review spec</b>':'2 Review spec')+'</span></div></div><div class="modal-body">';
@@ -382,6 +395,7 @@ function wizardHTML(){
     h+='<div class="fld"><label for="w-brief">Project brief</label><textarea id="w-brief" data-w1="brief" placeholder="What the project is, who it is for, what matters now. The more you give, the less generic the agent.">'+esc(w.brief)+'</textarea><span class="hint">Saved to the project when you continue.</span></div>';
     h+='<div class="fld"><label for="w-task">What should this agent do?</label><input type="text" id="w-task" data-w1="task" value="'+esc(w.task)+'" placeholder="Example: answer customer emails and keep the FAQ current"></div>';
     h+='<div class="fld"><label for="w-autonomy">Autonomy</label><select id="w-autonomy" data-w1="autonomy" style="width:100%"><option value="review"'+(w.autonomy==='review'?' selected':'')+'>Drafts only, I approve every action</option><option value="guardrails"'+(w.autonomy==='guardrails'?' selected':'')+'>Acts within written guardrails</option><option value="full"'+(w.autonomy==='full'?' selected':'')+'>Runs end to end, reports afterwards</option></select></div>';
+    h+=extrasHTML(w.extras);
     if(w.busy)h+='<div class="note">Claude is drafting the role. This can take up to a minute.</div>';
   }else{
     var f=w.fields,ta=function(k:any,lab:any,hint:any,rows:any){return '<div class="fld"><label for="wf-'+k+'">'+lab+'</label><textarea id="wf-'+k+'" data-wf="'+k+'" rows="'+(rows||4)+'">'+esc(f[k])+'</textarea>'+(hint?'<span class="hint">'+hint+'</span>':'')+'</div>'};
@@ -389,7 +403,7 @@ function wizardHTML(){
     h+='<div class="two"><div class="fld"><label for="wf-name">Agent name</label><input type="text" id="wf-name" data-wf="name" value="'+esc(f.name)+'"></div><div class="fld"><label for="wf-role">Role / job title</label><input type="text" id="wf-role" data-wf="role" value="'+esc(f.role)+'"></div></div>';
     h+='<div class="fld"><label for="wf-reportsTo">Reports to</label><input type="text" id="wf-reportsTo" data-wf="reportsTo" value="'+esc(f.reportsTo)+'"></div>';
     h+=ta('purpose','Job description','Two or three sentences on what this role is for.',3);
-    h+=ta('responsibilities','Responsibilities','One per line.',6)+ta('requirements','Requirements','One per line.',4)+ta('tools','Tools and access','One per line.',3);
+    h+=ta('responsibilities','Responsibilities','One per line.',6)+ta('requirements','Requirements','One per line.',4)+ta('tools','Tools and access','One per line.',3)+ta('mustNot','Needs your approval before','One per line.',3);
     h+=ta('goals','Goals','One per line: goal | horizon (30 days, 90 days, 6 months).',4);
     h+=ta('kras','Key result areas','One per line: area | outcome | weight %.',4);
     h+=ta('kpis','KPIs','One per line: name | target | unit | cadence | higher is better or lower is better.',5);
@@ -431,14 +445,14 @@ function render(){
 /* ---------- wizard actions ---------- */
 function openWizard(projectId:any){
   var pid=projectId||(S.scope!=='all'?S.scope:rid(S.repos[0]));
-  S.wizard={step:1,projectId:pid,brief:(S.projects[pid]&&S.projects[pid].brief)||'',task:'',autonomy:'review',busy:false,error:'',fields:null,source:'template',ctl:null};
+  S.wizard={step:1,projectId:pid,brief:(S.projects[pid]&&S.projects[pid].brief)||'',task:'',autonomy:'review',busy:false,error:'',fields:null,source:'template',ctl:null,extras:defaultExtras('')};
   S.chat=null;S.openAgent=null;render();
   var t=byId('w-task');if(t)t.focus();
 }
 function toStep2(spec:any,source:any){
   var w=S.wizard;
   if(w.brief.trim()!==((S.projects[w.projectId]&&S.projects[w.projectId].brief)||'').trim())saveBrief(w.projectId,w.brief,true);
-  w.fields=toFields(normalizeSpec(spec));w.source=source;w.step=2;w.error='';w.busy=false;w.ctl=null;render();
+  w.fields=toFields(normalizeSpec(applyExtras(spec,w.extras)));w.source=source;w.step=2;w.error='';w.busy=false;w.ctl=null;render();
 }
 function wizTemplate(){
   var w=S.wizard;if(!w.task.trim()){w.error='Describe what the agent should do first.';render();return}
@@ -448,7 +462,7 @@ async function wizGenerate(){
   var w=S.wizard;if(!w.task.trim()){w.error='Describe what the agent should do first.';render();return}
   w.busy=true;w.error='';w.ctl=new AbortController();render();
   try{
-    var spec=await SAMPLE!.json(buildPrompt(w),{signal:w.ctl.signal,cache:false});
+    var spec=await SAMPLE!.json(buildPrompt(w)+extrasPrompt(w.extras),{signal:w.ctl.signal,cache:false});
     if(S.wizard!==w)return;
     if(!spec||typeof spec!=='object'||Array.isArray(spec))throw {code:'invalid_json'};
     toStep2(spec,'claude');
@@ -469,7 +483,10 @@ function createAgent(){
   if(!f.name.trim()||!f.role.trim()){w.error='Give the agent a name and a role.';render();return}
   var s=fromFields(f);
   var a={id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
-    purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,source:w.source,createdAt:Date.now()};
+    purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,mustNot:s.mustNot,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,
+    routines:[{name:'Status update to '+(s.reportsTo||'the owner'),cadence:w.extras.cadence,state:'planned',next:'',note:'Set when the agent was built'}],
+    memory:w.extras.notes.trim()?[{text:w.extras.notes.trim(),at:today(),src:'you'}]:[],
+    source:w.source,createdAt:Date.now()};
   S.agents.unshift(a);persist('agents',a.id,a);
   S.wizard=null;S.scope=w.projectId;S.tab='agents';S.openAgent=a.id;render();toast('Agent created');
 }
@@ -629,14 +646,20 @@ document.addEventListener('input',function(e:any){
   if(t.dataset.q!==undefined){S.q=t.value;render()}
   else if(t.dataset.chat!==undefined&&S.chat){S.chat.draft=t.value}
   else if(t.dataset.wf&&S.wizard&&S.wizard.fields){S.wizard.fields[t.dataset.wf]=t.value}
+  else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
   else if(t.dataset.w1&&S.wizard){
     var k=t.dataset.w1;S.wizard[k]=t.value;
+    if(k==='task'){var before=JSON.stringify(S.wizard.extras);S.wizard.extras=refreshDefaults(S.wizard.extras,t.value);if(JSON.stringify(S.wizard.extras)!==before)render()}
     if(k==='projectId'){S.wizard.brief=(S.projects[t.value]&&S.projects[t.value].brief)||'';render()}
   }
 });
 document.addEventListener('change',function(e:any){
   var t=e.target;
   if(t.dataset.flt!==undefined){S.flt=t.value;render()}
+  else if(t.dataset.wcheck&&S.wizard){
+    var xk=t.dataset.wcheck,xs=S.wizard.extras;xs.touched[xk]=true;
+    xs[xk]=xs[xk].filter(function(v:any){return v!==t.value});if(t.checked)xs[xk].push(t.value);
+  }
   else if(t.dataset.status){var sv=t.value;mutate(t.dataset.status,function(a:any){a.status=sv})}
   else if(t.dataset.set){
     var kind=t.dataset.set,f=t.dataset.f,i=Number(t.dataset.i),v=t.type==='checkbox'?t.checked:t.value;

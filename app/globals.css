@@ -199,6 +199,10 @@ input.num{width:64px;text-align:right;font-family:var(--mono)}
 .err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:8px 12px;font-size:13px}
 .steps{display:flex;gap:8px;font:500 11.5px var(--mono);color:var(--muted);margin-top:8px}
 .steps b{color:var(--fg)}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px}
+.checks label{display:flex;gap:8px;align-items:center;font-weight:400;cursor:pointer}
+.more{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:12px}
+.more>h3{font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
 .block{display:flex;flex-direction:column;gap:8px}
 .block h2{font-family:var(--display);font-size:19px}
 

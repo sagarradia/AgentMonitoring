@@ -5,7 +5,8 @@ import path from 'node:path';
    and the ported app must render the same markup for the same clicks.
    One intended difference: the port lists every agent even when its manager is collapsed (the
    original only showed heads until expanded), so the first comparison is made with Expand all,
-   where both pages show every agent. The grid's hint line was reworded to match. */
+   where both pages show every agent. The grid's hint line was reworded to match.
+   The wizard was extended (tools, approvals, cadence), so it is covered by wizard.spec.ts instead. */
 const NEW_HINT = 'Every agent has a row, indented under its manager. Click a name to expand its goals, KRAs, KPIs and todos.';
 const OLD_HINT = 'Click a name to expand its goals, KRAs, KPIs, todos and reports.';
 
@@ -54,8 +55,6 @@ const steps: [string, (p: Page) => Promise<void>][] = [
   ['attention filter', async (p) => { await p.fill('#q', ''); await p.selectOption('#flt', 'attention') }],
   ['profile panel', async (p) => { await p.selectOption('#flt', 'all'); await p.click('[data-act="open-agent"][data-id="fv_cto"]') }],
   ['chat panel', async (p) => { await p.click('.panel [data-act="chat-open"]') }],
-  ['wizard step 1', async (p) => { await p.keyboard.press('Escape'); await p.click('header [data-act="wizard-open"]') }],
-  ['wizard step 2 (template)', async (p) => { await p.fill('#w-task', 'answer customer emails and keep the FAQ current'); await p.click('[data-act="wiz-template"]') }],
 ];
 
 test('the port renders the same markup as the original page', async ({ browser }) => {

@@ -63,18 +63,25 @@ export const ARCH: Record<string, { re: RegExp; spec: ArchSpec }> = {
 export interface WizardInput { projectId: string; brief: string; task: string; autonomy: string }
 export interface Spec {
   name: string; role: string; reportsTo: string; purpose: string;
-  responsibilities: string[]; requirements: string[]; tools: string[];
+  responsibilities: string[]; requirements: string[]; tools: string[]; mustNot: string[];
   goals: { text: string; horizon: string }[];
   kras: { area: string; outcome: string; weight: number }[];
   kpis: { name: string; target: number; unit: string; cadence: string; dir: 'up' | 'down' }[];
   todos: { text: string }[];
 }
-export type SpecFields = Record<'name' | 'role' | 'reportsTo' | 'purpose' | 'responsibilities' | 'requirements' | 'tools' | 'goals' | 'kras' | 'kpis' | 'todos', string>;
+export type SpecFields = Record<'name' | 'role' | 'reportsTo' | 'purpose' | 'responsibilities' | 'requirements' | 'tools' | 'mustNot' | 'goals' | 'kras' | 'kpis' | 'todos', string>;
+
+/** Which built-in template a task matches: support, marketing, sales, engineering or general. */
+export function archetypeOf(task: string): string {
+  const T = (task || 'the agreed work').trim();
+  let key = 'general';
+  ['support', 'marketing', 'sales', 'engineering'].some((k) => { if (ARCH[k].re.test(T)) { key = k; return true } return false });
+  return key;
+}
 
 export function templateSpec(repos: Repo[], w: WizardInput): Record<string, unknown> {
   const P = fullName(repos, w.projectId), T = (w.task || 'the agreed work').trim();
-  let key = 'general';
-  ['support', 'marketing', 'sales', 'engineering'].some((k) => { if (ARCH[k].re.test(T)) { key = k; return true } return false });
+  const key = archetypeOf(T);
   const enc = (v: string) => JSON.stringify(v).slice(1, -1);
   const spec = JSON.parse(JSON.stringify(ARCH[key].spec).replace(/\{P\}/g, enc(P)).replace(/\{T\}/g, enc(T)));
   spec.name = shortName(repos, w.projectId) + ' ' + spec.role.replace(/ Agent$/, '');
@@ -91,7 +98,7 @@ export function normalizeSpec(input: unknown): Spec {
   const str = (v: unknown): string => typeof v === 'string' ? v : (v == null ? '' : String(v));
   return {
     name: str(s.name), role: str(s.role), reportsTo: str(s.reportsTo), purpose: str(s.purpose),
-    responsibilities: arr(s.responsibilities).map(str), requirements: arr(s.requirements).map(str), tools: arr(s.tools).map(str),
+    responsibilities: arr(s.responsibilities).map(str), requirements: arr(s.requirements).map(str), tools: arr(s.tools).map(str), mustNot: arr(s.mustNot).map(str),
     goals: arr(s.goals).map((g) => typeof g === 'string' ? { text: g, horizon: '' } : { text: str(g.text), horizon: str(g.horizon) }),
     kras: arr(s.kras).map((k) => ({ area: str(k.area), outcome: str(k.outcome), weight: Number(k.weight) || 0 })),
     kpis: arr(s.kpis).map((k) => ({ name: str(k.name), target: Number(k.target) || 0, unit: str(k.unit), cadence: str(k.cadence) || 'monthly', dir: k.dir === 'down' ? 'down' as const : 'up' as const })),
@@ -102,7 +109,7 @@ export function normalizeSpec(input: unknown): Spec {
 export function toFields(s: Spec): SpecFields {
   return {
     name: s.name, role: s.role, reportsTo: s.reportsTo, purpose: s.purpose,
-    responsibilities: L(s.responsibilities), requirements: L(s.requirements), tools: L(s.tools),
+    responsibilities: L(s.responsibilities), requirements: L(s.requirements), tools: L(s.tools), mustNot: L(s.mustNot),
     goals: s.goals.map((g) => g.text + ' | ' + (g.horizon || '')).join('\n'),
     kras: s.kras.map((k) => k.area + ' | ' + k.outcome + ' | ' + k.weight).join('\n'),
     kpis: s.kpis.map((k) => k.name + ' | ' + k.target + ' | ' + (k.unit || '') + ' | ' + (k.cadence || '') + ' | ' + (k.dir === 'down' ? 'lower is better' : 'higher is better')).join('\n'),
@@ -114,7 +121,7 @@ export function fromFields(f: SpecFields) {
   const parts = (l: string) => l.split('|').map((x) => x.trim());
   return {
     name: f.name.trim(), role: f.role.trim(), reportsTo: f.reportsTo.trim(), purpose: f.purpose.trim(),
-    responsibilities: lines(f.responsibilities), requirements: lines(f.requirements), tools: lines(f.tools),
+    responsibilities: lines(f.responsibilities), requirements: lines(f.requirements), tools: lines(f.tools), mustNot: lines(f.mustNot || ''),
     goals: lines(f.goals).map((l) => { const p = parts(l); return { text: p[0], horizon: p[1] || '', done: false, due: '' } }),
     kras: lines(f.kras).map((l) => { const p = parts(l); return { area: p[0], outcome: p[1] || '', weight: parseFloat(p[2]) || 0 } }),
     kpis: lines(f.kpis).map((l) => { const p = parts(l); return { name: p[0], target: parseFloat(p[1]) || 0, unit: p[2] || '', cadence: p[3] || 'monthly', dir: /lower|down/i.test(p[4] || '') ? 'down' as const : 'up' as const, current: null, due: '' } }),
