@@ -1,0 +1,1141 @@
+<title>Agent Desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: project rail on the left; workspace on the right is a spreadsheet-style tree grid (agent rows expand into goal, KRA, KPI and todo rows, then their reports).
+   Profile and chat slide in from the right; the build-an-agent wizard is a centred dialog. */
+:root{
+  --bg:#F2F4F7;--surface:#FFFFFF;--surface2:#E9EDF2;--line:#D5DBE3;--fg:#131C28;--muted:#586577;
+  --accent:#2D54D1;--accent-soft:#E4EAFB;--on-accent:#FFFFFF;
+  --ok:#2B8458;--warn:#A86A12;--bad:#BE3A2A;--ok-soft:#E1F2E9;--warn-soft:#F7ECD8;--bad-soft:#F8E3DF;
+  --row-sub:#F7F9FC;--row-hot:#FDF1EF;
+  --shadow:0 12px 40px rgba(19,28,40,.18);--scrim:rgba(19,28,40,.45);
+  --display:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A;--surface:#151C25;--surface2:#1D2631;--line:#2B3644;--fg:#E7ECF2;--muted:#95A2B3;
+  --accent:#86A2FF;--accent-soft:#1F2B52;--on-accent:#0E131A;
+  --ok:#5FC28B;--warn:#E2B45F;--bad:#F18A7B;--ok-soft:#173326;--warn-soft:#35290F;--bad-soft:#3A1D19;
+  --row-sub:#121A23;--row-hot:#2B1917;
+  --shadow:0 12px 40px rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A;--surface:#151C25;--surface2:#1D2631;--line:#2B3644;--fg:#E7ECF2;--muted:#95A2B3;
+  --accent:#86A2FF;--accent-soft:#1F2B52;--on-accent:#0E131A;
+  --ok:#5FC28B;--warn:#E2B45F;--bad:#F18A7B;--ok-soft:#173326;--warn-soft:#35290F;--bad-soft:#3A1D19;
+  --row-sub:#121A23;--row-hot:#2B1917;
+  --shadow:0 12px 40px rgba(0,0,0,.55);--scrim:rgba(0,0,0,.6);color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans);padding-inline:16px;padding-block:20px 48px}
+h1,h2,h3,h4,p,ul,ol{margin:0}
+ul,ol{padding:0;list-style:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.mono{font-family:var(--mono)}
+.bad{color:var(--bad)}
+.hint{color:var(--muted);font-size:12.5px}
+
+.shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;max-width:1500px;margin:0 auto}
+.main{min-width:0;display:flex;flex-direction:column;gap:16px}
+
+/* rail */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;display:flex;flex-direction:column;gap:14px;min-width:0}
+.brand{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.brand small{display:block;font:400 12px var(--sans);color:var(--muted);letter-spacing:0;margin-top:2px}
+.scopes{display:flex;flex-direction:column;gap:4px}
+.scope{display:flex;flex-direction:column;gap:1px;text-align:left;background:transparent;border:1px solid transparent;border-radius:8px;padding:8px 10px;min-width:0}
+.scope:hover{background:var(--surface2)}
+.scope[aria-current="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.scope b{font-weight:600;overflow-wrap:anywhere}
+.scope span{font:400 11.5px var(--mono);color:var(--muted)}
+.rail-foot{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+
+/* buttons and fields */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500;line-height:1.2}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{padding:4px 10px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+textarea,input[type=text],input[type=number],input[type=date],select{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;width:100%}
+textarea{resize:vertical;min-height:72px;line-height:1.45}
+select{width:auto}
+
+/* header */
+.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.top h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.1;letter-spacing:-.02em;overflow-wrap:anywhere;text-wrap:balance}
+.top .sub{margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;border-radius:99px;padding:1px 9px;font:500 11.5px var(--mono);background:var(--surface2);color:var(--muted);white-space:nowrap}
+.tag{font:500 11px var(--mono);border:1px dashed var(--muted);color:var(--muted);border-radius:4px;padding:0 6px;white-space:nowrap}
+.cnt{font:400 11px var(--mono);color:var(--muted);white-space:nowrap}
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.brief label{font-weight:600}
+.brief .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* summary strip */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.strip>div{padding:10px 16px;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line);min-width:0}
+.strip>div:first-child{border-left:0}
+.strip .l{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.strip .v{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.15;font-variant-numeric:tabular-nums}
+.strip .v small{font:400 13px var(--sans);color:var(--muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;font-weight:500;color:var(--muted);white-space:nowrap;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tab em{font:500 11px var(--mono);font-style:normal;background:var(--surface2);border-radius:99px;padding:0 7px;margin-left:6px}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toolbar input[type=text]{flex:1;min-width:180px;width:auto}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:28px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.empty h3{font-family:var(--display);font-size:20px}
+.empty p{color:var(--muted);max-width:60ch}
+
+/* spreadsheet grid */
+.sheetwrap{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;max-height:72vh}
+table.sheet{border-collapse:separate;border-spacing:0;width:100%;min-width:1180px;font-size:13px}
+.sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0 8px;height:32px;vertical-align:middle;white-space:nowrap;text-align:left}
+.sheet thead th{position:sticky;top:0;z-index:2;background:var(--surface2);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.sheet .rn{width:46px;min-width:46px;text-align:right;background:var(--surface2);color:var(--muted);font:400 11px var(--mono);position:sticky;left:0;z-index:1}
+.sheet thead .rn{z-index:3}
+.sheet td.name{white-space:normal;min-width:300px}
+.sheet td.detail{white-space:normal;min-width:200px;max-width:340px;color:var(--muted)}
+.sheet td.kind{font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sheet td.act{white-space:nowrap;display:table-cell}
+.sheet td.act .btn+.btn{margin-left:4px}
+.sheet td.proj{font:400 12px var(--mono);color:var(--muted)}
+.sheet tr.r-agent td:not(.rn){background:var(--surface)}
+.sheet tr.r-agent td.name{font-weight:600}
+.sheet tr.r-sub td:not(.rn){background:var(--row-sub)}
+.sheet tr.hot td:not(.rn){background:var(--row-hot)}
+.sheet tr:hover td:not(.rn){filter:brightness(.98)}
+.sheet td.t-ok{color:var(--ok)}.sheet td.t-warn{color:var(--warn)}.sheet td.t-bad{color:var(--bad)}
+.caret{width:22px;height:22px;border:0;background:none;color:var(--muted);padding:0;vertical-align:middle}
+.nm{background:none;border:0;padding:0 2px;font-weight:600;text-align:left;vertical-align:middle}
+.nm:hover{text-decoration:underline}
+.cell{border:1px solid transparent;background:transparent;border-radius:3px;padding:3px 4px;height:26px;width:100%}
+.cell:hover{border-color:var(--line)}
+.cell:focus{border-color:var(--accent);background:var(--surface)}
+select.cell{width:auto;min-width:86px}
+input.dt{width:132px;font-family:var(--mono);font-size:12px}
+input.num{width:64px;text-align:right;font-family:var(--mono)}
+.sheet label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.sheet label input{margin-top:3px}
+.sheet tr.add input{width:100%}
+.sheet .btn.small{padding:2px 9px}
+.sheet td.blocked{color:var(--warn)}
+
+/* overlays */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--bg);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:21;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.panel-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.panel-head h2{font-family:var(--display);font-size:22px;line-height:1.15;overflow-wrap:anywhere}
+.panel-head .role{color:var(--muted)}
+.panel-head .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.panel-body{overflow-y:auto;padding:16px;padding-bottom:calc(32px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:20px;min-width:0}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec>h3{font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.sec ul.plain{display:flex;flex-direction:column;gap:5px}
+.sec ul.plain li{padding-left:14px;position:relative;overflow-wrap:anywhere}
+.sec ul.plain li::before{content:"";position:absolute;left:2px;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.facts div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.facts span{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.facts b{font-weight:500;overflow-wrap:anywhere}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--surface2);border-radius:6px;padding:2px 8px;font-size:12.5px}
+.rowline{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.rowline .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.rowline small{display:block;color:var(--muted);font:400 11.5px var(--mono)}
+.rowline.done .grow{color:var(--muted);text-decoration:line-through}
+.rowline .dt{margin-top:2px}
+.kin{width:84px;text-align:right;font-family:var(--mono)}
+.kpi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.kpi .bar{grid-column:1/-1}
+.kpi .tg{font:400 12px var(--mono);color:var(--muted);text-align:right}
+.bar{height:6px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.t-ok .bar i{background:var(--ok)}.t-warn .bar i{background:var(--warn)}.t-bad .bar i{background:var(--bad)}
+.st{border:1px solid var(--line);background:var(--surface);border-radius:99px;width:24px;height:24px;flex:none;display:grid;place-items:center;font:500 11px var(--mono);padding:0}
+.st[data-s="doing"]{border-color:var(--accent);color:var(--accent)}
+.st[data-s="done"]{background:var(--ok);border-color:var(--ok);color:var(--on-accent)}
+.addrow{display:flex;gap:8px}
+.foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line)}
+.confirm{background:var(--bad-soft);border:1px solid var(--bad);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* chat */
+.panel.chat{width:min(620px,100%)}
+.chat-note{padding:8px 16px;font-size:12.5px;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--line)}
+.chat-quick{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
+.chat-log{flex:1;min-height:120px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;flex-direction:column;gap:2px;max-width:94%}
+.msg.founder{align-self:flex-end}
+.msg .who{font:500 11px var(--mono);color:var(--muted)}
+.msg.founder .who{text-align:right}
+.msg .txt{white-space:pre-wrap;overflow-wrap:anywhere;border-radius:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--line)}
+.msg.founder .txt{background:var(--accent-soft);border-color:var(--accent)}
+.props{border-top:1px solid var(--line);padding:10px 16px;max-height:34%;overflow-y:auto;display:flex;flex-direction:column;gap:6px;background:var(--surface)}
+.props h3{font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.prop{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.prop .grow{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.prop .grow small{display:block;color:var(--muted);font:400 11.5px var(--mono)}
+.chat-compose{border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.chat-compose textarea{min-height:56px}
+.chat-compose .row{display:flex;gap:8px;flex-wrap:wrap}
+
+.modal{position:fixed;z-index:22;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100% - 24px));max-height:calc(100% - 24px);display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.modal-head{padding:16px 18px;border-bottom:1px solid var(--line);background:var(--surface);border-radius:12px 12px 0 0}
+.modal-head h2{font-family:var(--display);font-size:22px}
+.modal-head p{color:var(--muted);margin-top:2px}
+.modal-body{overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;background:var(--surface);border-radius:0 0 12px 12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld label{font-weight:600}
+.fld .hint{font-size:12px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.note{background:var(--accent-soft);border-radius:8px;padding:8px 12px;font-size:13px}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:8px 12px;font-size:13px}
+.steps{display:flex;gap:8px;font:500 11.5px var(--mono);color:var(--muted);margin-top:8px}
+.steps b{color:var(--fg)}
+.block{display:flex;flex-direction:column;gap:8px}
+.block h2{font-family:var(--display);font-size:19px}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;z-index:40;font-size:13px;max-width:calc(100% - 32px)}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:16px}
+  .rail{position:static}
+  .scopes{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .scope{min-width:150px;border-color:var(--line);background:var(--surface)}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip>div:nth-child(3){border-left:0}
+  .strip>div:nth-child(n+3){border-top:1px solid var(--line)}
+  .top h1{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app"></div>
+<div id="overlay"></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* GitHub snapshot taken 11 Oct 2026. "Sync from GitHub" replaces it. */
+var DEFAULT_REPOS=[
+ {full_name:'Skybirds-Empyrean-Avenue/familyvault',url:'https://github.com/Skybirds-Empyrean-Avenue/familyvault',pushed_at:'2026-10-11T07:12:13Z',visibility:'private'},
+ {full_name:'sagarradia/ensyncro',url:'https://github.com/sagarradia/ensyncro',pushed_at:'2026-08-02T17:49:51Z',visibility:'public'},
+ {full_name:'sagarradia/pocketfund.in',url:'https://github.com/sagarradia/pocketfund.in',pushed_at:'2026-07-27T18:54:32Z',visibility:'private'},
+ {full_name:'sagarradia/MarketingSite_Mock',url:'https://github.com/sagarradia/MarketingSite_Mock',pushed_at:'2026-07-21T09:50:19Z',visibility:'public'},
+ {full_name:'sagarradia/trvo',url:'https://github.com/sagarradia/trvo',pushed_at:'2026-05-18T22:45:21Z',visibility:'private'},
+ {full_name:'sagarradia/secondjobs-in',url:'https://github.com/sagarradia/secondjobs-in',pushed_at:'2026-05-01T08:43:52Z',visibility:'private'}
+];
+
+var S={repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'agents',
+  q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
+var DB=null,SAMPLE=null,MCP=null,DL=null,lastSig='';
+var app=document.getElementById('app'),overlay=document.getElementById('overlay'),toastEl=document.getElementById('toast');
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function rid(r){return r.full_name.replace('/','__')}
+function repoById(id){for(var i=0;i<S.repos.length;i++)if(rid(S.repos[i])===id)return S.repos[i];return null}
+function shortName(id){var r=repoById(id);return r?r.full_name.split('/')[1]:String(id).split('__').pop()}
+function fullName(id){var r=repoById(id);return r?r.full_name:String(id).replace('__','/')}
+function newId(){return 'a_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function ago(iso){var d=(Date.now()-new Date(iso).getTime())/864e5;if(!(d>=0))return '';if(d<1)return 'today';if(d<2)return 'yesterday';if(d<30)return Math.floor(d)+' days ago';if(d<365)return Math.floor(d/30)+' months ago';return Math.floor(d/365)+' years ago'}
+function fmtDate(ms){return ms?new Date(ms).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):''}
+function toast(t){toastEl.textContent=t;toastEl.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){toastEl.hidden=true},3400)}
+function agentsOf(scope){return S.agents.filter(function(a){return scope==='all'||a.projectId===scope})}
+function count(a,key,pred){return (a[key]||[]).filter(pred).length}
+function statusLabel(s){return {active:'Active',paused:'Paused',draft:'Draft'}[s]||'Active'}
+function fmtNum(n){return n==null||n===''?'':Number(n).toLocaleString()}
+function kpiPct(k){if(k.current==null||k.current===''||!(k.target>0))return null;var c=Number(k.current);if(!isFinite(c))return null;if(k.dir==='down')return c<=k.target?100:Math.round(k.target/c*100);return Math.min(100,Math.round(c/k.target*100))}
+function agentPct(a){var v=(a.kpis||[]).map(kpiPct).filter(function(x){return x!=null});return v.length?Math.round(v.reduce(function(s,x){return s+x},0)/v.length):null}
+function tone(p){return p==null?'':p>=90?'t-ok':p>=60?'t-warn':'t-bad'}
+
+/* ---------- dates and flags ---------- */
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function isLate(kind,it){
+  if(!it||!it.due||it.due>=today())return false;
+  if(kind==='todo')return it.status!=='done';
+  if(kind==='goal')return !it.done;
+  var p=kpiPct(it);return p==null||p<100;
+}
+function isBlocked(t){return t.status!=='done'&&/\[[^\]]*(blocked|needs founder)/i.test(t.text||'')}
+function lateCount(a){var n=0;(a.todos||[]).forEach(function(t){if(isLate('todo',t))n++});(a.goals||[]).forEach(function(g){if(isLate('goal',g))n++});(a.kpis||[]).forEach(function(k){if(isLate('kpi',k))n++});(a.routines||[]).forEach(function(r){if(routineLate(r))n++});return n}
+function routineLate(r){return !!r&&r.state==='on'&&!!r.next&&r.next<today()}
+function libCount(a){return (a.memory||[]).length+(a.docs||[]).length+(a.skills||[]).length+(a.routines||[]).length}
+function routineSel(id,i,s){return '<select class="cell" id="rs-'+esc(id)+'-'+i+'" data-set="routine" data-f="state" data-id="'+esc(id)+'" data-i="'+i+'" aria-label="Routine state">'+[['planned','Planned'],['on','On'],['paused','Paused']].map(function(o){return '<option value="'+o[0]+'"'+((s||'planned')===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'}
+function attention(a){return lateCount(a)>0||(a.todos||[]).some(isBlocked)}
+function nextDue(a){var ds=[];(a.todos||[]).forEach(function(t){if(t.due&&t.status!=='done')ds.push(t.due)});(a.goals||[]).forEach(function(g){if(g.due&&!g.done)ds.push(g.due)});(a.kpis||[]).forEach(function(k){if(k.due)ds.push(k.due)});(a.routines||[]).forEach(function(r){if(r.next&&r.state==='on')ds.push(r.next)});ds.sort();return ds[0]||''}
+
+/* ---------- persistence ---------- */
+var chains={};
+function persist(coll,id,data){
+  if(!DB)return;
+  var k=coll+'/'+id,body=clone(data);
+  chains[k]=(chains[k]||Promise.resolve()).then(function(){return DB.doc(k).set(body)}).catch(function(e){toast('Could not save: '+((e&&e.code)||'unknown error'))});
+}
+function removeDoc(coll,id){
+  if(!DB)return;
+  var k=coll+'/'+id;
+  chains[k]=(chains[k]||Promise.resolve()).then(function(){return DB.doc(k).delete()}).catch(function(e){toast('Could not delete: '+((e&&e.code)||'unknown error'))});
+}
+function mutate(id,fn){var a=S.agents.filter(function(x){return x.id===id})[0];if(!a)return;fn(a);persist('agents',a.id,a);render()}
+
+/* ---------- agent spec templates ---------- */
+var ARCH={
+ support:{re:/support|customer|ticket|helpdesk|faq|inbox|chat/i,spec:{
+  role:'Customer Support Agent',reportsTo:'Founder / head of support',
+  purpose:'Answers customers of {P} quickly and accurately, and turns repeated questions into documentation. Focus: {T}.',
+  responsibilities:['Reply to incoming questions within the agreed response time','Tag and route tickets that need a human','Maintain a help centre and FAQ for {P}','Log recurring problems for the product team','Follow the escalation policy for refunds, safety and legal issues','Send a weekly summary of question themes'],
+  requirements:['Clear, friendly writing','Working knowledge of {P}','Follows escalation rules without exceptions','Records what was decided on each ticket'],
+  tools:['Helpdesk or shared inbox','Knowledge base','Product admin (read-only)','Team chat'],
+  goals:[{text:'Write the first 15 FAQ answers for {P}',horizon:'30 days'},{text:'Handle {T} with human review on every reply',horizon:'90 days'},{text:'Cut repeat questions with better docs',horizon:'90 days'}],
+  kras:[{area:'Responsiveness',outcome:'Customers get timely replies',weight:40},{area:'Accuracy',outcome:'Answers are correct and consistent',weight:35},{area:'Knowledge base',outcome:'Docs grow from real questions',weight:25}],
+  kpis:[{name:'First response time',target:4,unit:'hours',cadence:'daily',dir:'down'},{name:'Customer satisfaction',target:90,unit:'%',cadence:'weekly',dir:'up'},{name:'Tickets resolved without escalation',target:80,unit:'%',cadence:'weekly',dir:'up'},{name:'FAQ articles published',target:15,unit:'articles',cadence:'monthly',dir:'up'}],
+  todos:['Collect the 20 most likely customer questions about {P}','Draft answers and send them for approval','Set up ticket tags and routing rules','Write the escalation policy','Handle the first 10 live tickets with review','Send the first weekly themes summary']}},
+ marketing:{re:/market|content|seo|blog|social|brand|campaign|copy|newsletter|landing/i,spec:{
+  role:'Content & Growth Agent',reportsTo:'Founder / marketing lead',
+  purpose:'Plans and publishes content that brings the right people to {P}. Focus: {T}.',
+  responsibilities:['Maintain a content calendar tied to {P} goals','Draft blog posts, landing page copy and social posts for approval','Research keywords and competitor pages','Track visits and sign-ups from each piece','Keep the brand voice consistent','Report what worked each month'],
+  requirements:['Strong writing and editing','Basic SEO knowledge','Reads analytics and draws plain conclusions','Does not publish without sign-off'],
+  tools:['CMS or site repository','Web analytics','Keyword research tool','Social scheduler'],
+  goals:[{text:'Write a one-page audience and positioning brief for {P}',horizon:'30 days'},{text:'Publish a steady content cadence for {T}',horizon:'90 days'},{text:'Grow organic visits month over month',horizon:'6 months'}],
+  kras:[{area:'Content output',outcome:'Planned pieces published on time',weight:35},{area:'Audience growth',outcome:'More qualified visitors and sign-ups',weight:40},{area:'Brand consistency',outcome:'Voice and message stay aligned',weight:25}],
+  kpis:[{name:'Posts published',target:8,unit:'per month',cadence:'monthly',dir:'up'},{name:'Organic visits',target:2000,unit:'per month',cadence:'monthly',dir:'up'},{name:'Sign-up conversion',target:3,unit:'%',cadence:'monthly',dir:'up'},{name:'Drafts approved on first review',target:70,unit:'%',cadence:'monthly',dir:'up'}],
+  todos:['Write the audience and positioning brief for {P}','Audit the current site and list quick wins','Build a 30-day content calendar','Draft the first two pieces for approval','Set up tracking for visits and sign-ups','Review results and adjust the calendar']}},
+ sales:{re:/sales|lead|outreach|prospect|pipeline|crm|deal|investor|pitch/i,spec:{
+  role:'Sales Development Agent',reportsTo:'Founder / sales lead',
+  purpose:'Finds and qualifies prospects for {P} and books conversations for the team. Focus: {T}.',
+  responsibilities:['Build and maintain a target prospect list','Draft outreach messages for approval','Follow up on a fixed cadence','Record every interaction in the CRM','Qualify leads against agreed criteria','Hand over qualified leads with context'],
+  requirements:['Understands who {P} is for','Concise, respectful outreach writing','Keeps accurate records','Respects opt-outs and privacy rules'],
+  tools:['CRM','Email and LinkedIn (draft mode)','Lead research sources','Calendar'],
+  goals:[{text:'Define the ideal customer profile for {P}',horizon:'30 days'},{text:'Run a first outreach campaign for {T}',horizon:'90 days'},{text:'Build a repeatable qualification process',horizon:'90 days'}],
+  kras:[{area:'Pipeline',outcome:'Enough qualified leads each month',weight:45},{area:'Outreach quality',outcome:'Relevant, compliant messages',weight:30},{area:'Data hygiene',outcome:'CRM stays complete and current',weight:25}],
+  kpis:[{name:'Qualified leads handed over',target:20,unit:'per month',cadence:'monthly',dir:'up'},{name:'Reply rate',target:12,unit:'%',cadence:'weekly',dir:'up'},{name:'Meetings booked',target:8,unit:'per month',cadence:'monthly',dir:'up'},{name:'CRM records complete',target:95,unit:'%',cadence:'weekly',dir:'up'}],
+  todos:['Write the ideal customer profile for {P}','Build a first list of 50 prospects','Draft three outreach templates for approval','Set up the CRM stages and fields','Send the first 20 approved messages','Review replies and refine the templates']}},
+ engineering:{re:/code|dev|feature|build|engineer|pull request|\bpr\b|review|refactor|deploy|bug|api|backend|frontend|test|release/i,spec:{
+  role:'Software Engineer Agent',reportsTo:'Founder / tech lead',
+  purpose:'Owns day-to-day engineering work on {P}: {T}. Ships small, reviewed changes and keeps the repository healthy.',
+  responsibilities:['Break {T} into small pull requests with clear descriptions','Write and update tests for every change','Review incoming pull requests and flag risks','Triage open issues and label them by priority','Keep the README and setup steps accurate','Report blockers in a weekly update'],
+  requirements:['Reads and writes the languages used in the {P} repository','Comfortable with Git, pull requests and CI','Writes clear commit messages and PR descriptions','Asks before changing shared behaviour'],
+  tools:['GitHub (issues, pull requests)','CI pipeline','Code editor or sandbox','Error and log monitoring'],
+  goals:[{text:'Understand the {P} codebase and list its main modules',horizon:'30 days'},{text:'Complete {T} in reviewed, tested increments',horizon:'90 days'},{text:'Bring the open issue backlog under control',horizon:'90 days'}],
+  kras:[{area:'Delivery',outcome:'Planned work ships on schedule',weight:40},{area:'Quality',outcome:'Changes land with tests and few regressions',weight:35},{area:'Repository health',outcome:'Issues triaged, docs current',weight:25}],
+  kpis:[{name:'Pull requests merged',target:8,unit:'per month',cadence:'monthly',dir:'up'},{name:'Test coverage on changed files',target:80,unit:'%',cadence:'monthly',dir:'up'},{name:'Median PR review time',target:24,unit:'hours',cadence:'weekly',dir:'down'},{name:'Open issues older than 30 days',target:5,unit:'issues',cadence:'weekly',dir:'down'}],
+  todos:['Read the {P} README and map the folder structure','Run the project locally and note setup problems','List open issues and tag them by priority','Pick the first small change for {T} and open a draft PR','Add a test for the first change','Post a first weekly update']}},
+ general:{re:/./,spec:{
+  role:'Operations Agent',reportsTo:'Project owner',
+  purpose:'Keeps work on {P} moving: {T}. Plans tasks, follows up, and reports progress.',
+  responsibilities:['Turn {T} into a task list with owners and dates','Track progress and flag blockers','Prepare a weekly status update','Keep project documents organised','Escalate decisions that need the owner','Review results against the goals'],
+  requirements:['Clear written communication','Structured planning','Reliable follow-through','Knows when to stop and ask'],
+  tools:['Task tracker','Shared documents','Team chat','Calendar'],
+  goals:[{text:'Agree the scope and success measures for {T}',horizon:'30 days'},{text:'Deliver {T} against the agreed plan',horizon:'90 days'},{text:'Run a steady weekly review rhythm',horizon:'90 days'}],
+  kras:[{area:'Delivery',outcome:'Work finishes on the agreed dates',weight:45},{area:'Visibility',outcome:'Status is always current and clear',weight:30},{area:'Process',outcome:'Reviews and handovers run smoothly',weight:25}],
+  kpis:[{name:'Tasks completed on time',target:85,unit:'%',cadence:'weekly',dir:'up'},{name:'Weekly updates sent',target:4,unit:'per month',cadence:'monthly',dir:'up'},{name:'Open blockers older than 7 days',target:2,unit:'blockers',cadence:'weekly',dir:'down'}],
+  todos:['Write the scope and success measures for {T}','Break {T} into tasks with owners and dates','Set up the weekly review','Send the first status update','Collect open questions for the owner','Review progress against the goals']}}
+};
+function templateSpec(w){
+  var P=fullName(w.projectId),T=(w.task||'the agreed work').trim(),key='general';
+  ['support','marketing','sales','engineering'].some(function(k){if(ARCH[k].re.test(T)){key=k;return true}return false});
+  var enc=function(v){return JSON.stringify(v).slice(1,-1)};
+  var spec=JSON.parse(JSON.stringify(ARCH[key].spec).replace(/\{P\}/g,enc(P)).replace(/\{T\}/g,enc(T)));
+  spec.name=shortName(w.projectId)+' '+spec.role.replace(/ Agent$/,'');
+  return spec;
+}
+
+/* ---------- spec <-> editable text ---------- */
+function L(a){return (a||[]).join('\n')}
+function lines(t){return String(t||'').split('\n').map(function(x){return x.trim()}).filter(Boolean)}
+function normalizeSpec(s){
+  s=s||{};
+  var arr=function(v){return Array.isArray(v)?v:[]};
+  var str=function(v){return typeof v==='string'?v:(v==null?'':String(v))};
+  return {
+    name:str(s.name),role:str(s.role),reportsTo:str(s.reportsTo),purpose:str(s.purpose),
+    responsibilities:arr(s.responsibilities).map(str),requirements:arr(s.requirements).map(str),tools:arr(s.tools).map(str),
+    goals:arr(s.goals).map(function(g){return typeof g==='string'?{text:g,horizon:''}:{text:str(g.text),horizon:str(g.horizon)}}),
+    kras:arr(s.kras).map(function(k){return {area:str(k.area),outcome:str(k.outcome),weight:Number(k.weight)||0}}),
+    kpis:arr(s.kpis).map(function(k){return {name:str(k.name),target:Number(k.target)||0,unit:str(k.unit),cadence:str(k.cadence)||'monthly',dir:k.dir==='down'?'down':'up'}}),
+    todos:arr(s.todos).map(function(t){return {text:typeof t==='string'?t:str(t&&t.text)}})
+  };
+}
+function toFields(s){
+  return {name:s.name,role:s.role,reportsTo:s.reportsTo,purpose:s.purpose,
+    responsibilities:L(s.responsibilities),requirements:L(s.requirements),tools:L(s.tools),
+    goals:s.goals.map(function(g){return g.text+' | '+(g.horizon||'')}).join('\n'),
+    kras:s.kras.map(function(k){return k.area+' | '+k.outcome+' | '+k.weight}).join('\n'),
+    kpis:s.kpis.map(function(k){return k.name+' | '+k.target+' | '+(k.unit||'')+' | '+(k.cadence||'')+' | '+(k.dir==='down'?'lower is better':'higher is better')}).join('\n'),
+    todos:s.todos.map(function(t){return t.text}).join('\n')};
+}
+function fromFields(f){
+  var parts=function(l){return l.split('|').map(function(x){return x.trim()})};
+  return {
+    name:f.name.trim(),role:f.role.trim(),reportsTo:f.reportsTo.trim(),purpose:f.purpose.trim(),
+    responsibilities:lines(f.responsibilities),requirements:lines(f.requirements),tools:lines(f.tools),
+    goals:lines(f.goals).map(function(l){var p=parts(l);return {text:p[0],horizon:p[1]||'',done:false,due:''}}),
+    kras:lines(f.kras).map(function(l){var p=parts(l);return {area:p[0],outcome:p[1]||'',weight:parseFloat(p[2])||0}}),
+    kpis:lines(f.kpis).map(function(l){var p=parts(l);return {name:p[0],target:parseFloat(p[1])||0,unit:p[2]||'',cadence:p[3]||'monthly',dir:/lower|down/i.test(p[4]||'')?'down':'up',current:null,due:''}}),
+    todos:lines(f.todos).map(function(t){return {text:t,status:'todo',due:''}})
+  };
+}
+function buildPrompt(w){
+  var r=repoById(w.projectId),auto={review:'Drafts only; a human approves every action.',guardrails:'Acts on its own inside written guardrails and escalates anything outside them.',full:'Runs the work end to end and reports afterwards.'}[w.autonomy]||'';
+  return 'You are helping an owner who runs a portfolio of software projects staffed by AI agent employees. Write the role specification for one new agent.\n\n'
+   +'Project: '+fullName(w.projectId)+(r?' (GitHub repository, '+r.visibility+', last push '+ago(r.pushed_at)+')':'')+'\n'
+   +'Project brief from the owner: '+(w.brief.trim()||'(none given; only the repository name is known)')+'\n'
+   +'Task for the agent: '+w.task.trim()+'\n'
+   +'Autonomy: '+auto+'\n\n'
+   +'Rules: ground everything in the project name, brief and task. Do not invent product facts, customers, tools the owner did not mention, or numbers about the project. Where something is unknown, make the first todos about finding it out. Todos are concrete first-week actions in order. KPI targets are realistic starting targets the owner can edit. KRA weights add up to 100.\n\n'
+   +'Reply with only one JSON object of this shape:\n'
+   +'{"name":"short agent name","role":"job title","reportsTo":"who it reports to","purpose":"2-3 sentence job description summary",'
+   +'"responsibilities":["5-7 items"],"requirements":["4-6 skills or knowledge items"],"tools":["3-6 tools or systems"],'
+   +'"goals":[{"text":"...","horizon":"30 days|90 days|6 months"}],'
+   +'"kras":[{"area":"...","outcome":"...","weight":40}],'
+   +'"kpis":[{"name":"...","target":10,"unit":"...","cadence":"daily|weekly|monthly","dir":"up|down"}],'
+   +'"todos":[{"text":"..."}]}\n'
+   +'Give 3-4 goals, 3-4 KRAs, 3-5 KPIs and 6-8 todos.';
+}
+function jdText(a){
+  var out=[a.name+' - '+a.role,'Project: '+fullName(a.projectId),a.reportsTo?'Reports to: '+a.reportsTo:'','','Purpose',a.purpose||'','','Responsibilities'];
+  (a.responsibilities||[]).forEach(function(x){out.push('- '+x)});
+  out.push('','Requirements');(a.requirements||[]).forEach(function(x){out.push('- '+x)});
+  out.push('','Tools');(a.tools||[]).forEach(function(x){out.push('- '+x)});
+  out.push('','Goals');(a.goals||[]).forEach(function(g){out.push('- '+g.text+(g.horizon?' ('+g.horizon+')':'')+(g.due?' due '+g.due:''))});
+  out.push('','Key result areas');(a.kras||[]).forEach(function(k){out.push('- '+k.area+' ('+k.weight+'%): '+k.outcome)});
+  out.push('','KPIs');(a.kpis||[]).forEach(function(k){out.push('- '+k.name+': '+(k.target==null?'target not set':k.target+' '+(k.unit||''))+' '+(k.cadence||''))});
+  return out.filter(function(x,i,arr){return !(x===''&&arr[i-1]==='')}).join('\n');
+}
+
+/* ---------- tree ---------- */
+function nrm(s){return String(s||'').toLowerCase().replace(/\(.*?\)/g,' ').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function repKey(s){var t=String(s||''),v=t.toLowerCase().indexOf(' via ');if(v>=0)t=t.slice(v+5);return nrm(t)}
+function sortAg(x,y){var rx=x.level==='Head'?0:1,ry=y.level==='Head'?0:1;return rx-ry||String(x.name).localeCompare(String(y.name))}
+function buildTree(list){
+  var kids={},roots=[],names=list.map(function(a){var n=nrm(a.name);return {a:a,n:n,w:n.split(' ')}});
+  list.forEach(function(a){
+    var rk=repKey(a.reportsTo),parent=null;
+    if(rk&&rk!=='founder'){
+      var same=names.filter(function(x){return x.a.id!==a.id&&x.a.projectId===a.projectId});
+      var ex=same.filter(function(x){return x.n===rk})[0];
+      if(!ex){var rw=rk.split(' '),c=same.filter(function(x){return rw.every(function(w){return x.w.indexOf(w)>=0})});c.sort(function(p,q){return p.w.length-q.w.length});ex=c[0]}
+      if(ex)parent=ex.a.id;
+    }
+    if(parent)(kids[parent]=kids[parent]||[]).push(a);else roots.push(a);
+  });
+  var seen={};
+  function mark(a){if(seen[a.id])return;seen[a.id]=1;(kids[a.id]||[]).forEach(mark)}
+  roots.forEach(mark);
+  list.forEach(function(a){if(!seen[a.id]){roots.push(a);mark(a)}});
+  roots.sort(sortAg);Object.keys(kids).forEach(function(k){kids[k].sort(sortAg)});
+  return {roots:roots,kids:kids};
+}
+function passF(a){
+  if(S.flt==='attention'&&!attention(a))return false;
+  if(S.flt==='active'&&a.status!=='active')return false;
+  if(S.flt==='draft'&&a.status!=='draft')return false;
+  var q=S.q.trim().toLowerCase();
+  if(q){
+    var h=[a.name,a.role,a.reportsTo,a.purpose].concat((a.todos||[]).map(function(t){return t.text})).concat((a.goals||[]).map(function(g){return g.text})).join(' ').toLowerCase();
+    if(h.indexOf(q)<0)return false;
+  }
+  return true;
+}
+
+/* ---------- HTML builders ---------- */
+function railHTML(){
+  var h='<aside class="rail"><div class="brand">Agent Desk<small>Projects, agents and scorecards</small></div><nav class="scopes" aria-label="Projects">';
+  h+='<button class="scope" data-act="scope" data-id="all" aria-current="'+(S.scope==='all')+'"><b>All projects</b><span>'+S.repos.length+' repos · '+S.agents.length+' agents</span></button>';
+  S.repos.forEach(function(r){
+    var id=rid(r),ag=agentsOf(id),open=ag.reduce(function(s,a){return s+count(a,'todos',function(t){return t.status!=='done'})},0);
+    h+='<button class="scope" data-act="scope" data-id="'+esc(id)+'" aria-current="'+(S.scope===id)+'"><b>'+esc(r.full_name.split('/')[1])+'</b><span>'+ag.length+' agents · '+open+' open</span></button>';
+  });
+  h+='</nav><div class="rail-foot">';
+  if(MCP)h+='<button class="btn small" data-act="sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing…':'Sync from GitHub')+'</button>';
+  h+='<span>'+(S.syncedAt?'Synced '+esc(fmtDate(S.syncedAt)):'GitHub snapshot, 11 Oct 2026')+'</span></div></aside>';
+  return h;
+}
+function topHTML(repo){
+  var h='<header class="top"><div><h1>'+(repo?esc(repo.full_name.split('/')[1]):'All projects')+'</h1><div class="sub">';
+  if(repo)h+='<a href="'+esc(repo.url)+'" target="_blank" rel="noopener">'+esc(repo.full_name)+'</a><span class="pill">'+esc(repo.visibility)+'</span><span>pushed '+esc(ago(repo.pushed_at))+'</span>';
+  else if(S.scope!=='all')h+='<span>'+esc(fullName(S.scope))+'</span>';
+  else h+='<span>'+S.repos.length+' repositories from GitHub, with the agents that run them</span>';
+  h+='</div></div><button class="btn primary" data-act="wizard-open" data-project="'+(S.scope==='all'?'':esc(S.scope))+'">Build an agent</button></header>';
+  return h;
+}
+function briefHTML(id){
+  var b=(S.projects[id]||{}).brief||'';
+  return '<section class="brief"><label for="brief-edit">Project brief</label><p class="hint">What this project is, who it is for and what matters this quarter. New agents are drafted from it.</p>'
+   +'<textarea id="brief-edit" data-brief="'+esc(id)+'" placeholder="Example: A mobile-first savings app for gig workers in India. Launching the beta in November.">'+esc(b)+'</textarea>'
+   +'<div class="row"><button class="btn small" data-act="save-brief" data-id="'+esc(id)+'">Save brief</button></div></section>';
+}
+function statsHTML(list){
+  var active=list.filter(function(a){return a.status==='active'}).length,open=0,tot=0,late=0,gd=0,gt=0,pcts=[];
+  list.forEach(function(a){
+    open+=count(a,'todos',function(t){return t.status!=='done'});tot+=(a.todos||[]).length;
+    gt+=(a.goals||[]).length;gd+=count(a,'goals',function(g){return g.done});late+=lateCount(a);
+    var p=agentPct(a);if(p!=null)pcts.push(p);
+  });
+  var avg=pcts.length?Math.round(pcts.reduce(function(s,x){return s+x},0)/pcts.length):null;
+  return '<section class="strip" aria-label="Summary">'
+   +'<div><span class="l">Agents</span><span class="v">'+list.length+' <small>'+active+' active</small></span></div>'
+   +'<div><span class="l">Open todos</span><span class="v">'+open+' <small>of '+tot+(late?' · <span class="bad">'+late+' overdue</span>':'')+'</small></span></div>'
+   +'<div><span class="l">Goals met</span><span class="v">'+gd+' <small>of '+gt+'</small></span></div>'
+   +'<div><span class="l">KPI attainment</span><span class="v">'+(avg==null?'—':avg+'<small>%</small>')+'</span></div></section>';
+}
+function tabsHTML(list){
+  var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
+  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb]];
+  return '<div class="tabs" role="tablist">'+t.map(function(x){return '<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(S.tab===x[0])+'">'+x[1]+'<em>'+x[2]+'</em></button>'}).join('')+'</div>';
+}
+function emptyHTML(){
+  var scoped=S.scope!=='all';
+  return '<div class="empty"><h3>No agents '+(scoped?'on '+esc(shortName(S.scope)):'yet')+'</h3><p>'
+   +(scoped?'Add a short brief above, then build an agent for a task. You review its job description, goals, key result areas, KPIs and todos before it is created.':'Pick a project, describe the task, and review the job description, goals, key result areas, KPIs and todos before the agent is created.')
+   +'</p><button class="btn primary" data-act="wizard-open" data-project="'+(scoped?esc(S.scope):'')+'">Build the first agent</button></div>';
+}
+function toolbarHTML(tree){
+  var o=[['all','All'],['attention','Needs attention (overdue or blocked)'],['active','Active only'],['draft','Draft only']];
+  return '<div class="toolbar"><input type="text" id="q" data-q placeholder="Search agents, goals and todos" aria-label="Search" value="'+esc(S.q)+'">'
+   +'<select id="flt" data-flt aria-label="Filter">'+o.map(function(x){return '<option value="'+x[0]+'"'+(S.flt===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'
+   +(tree?'<button class="btn small" data-act="expand-all">Expand all</button><button class="btn small" data-act="collapse-all">Collapse all</button>':'')
+   +(DL?'<button class="btn small" data-act="csv">Download CSV</button>':'')+'</div>';
+}
+function dateInput(kind,aid,i,v){
+  return '<input type="date" class="cell dt" id="d-'+kind+'-'+esc(aid)+'-'+i+'" data-set="'+kind+'" data-f="due" data-id="'+esc(aid)+'" data-i="'+i+'" value="'+esc(v||'')+'" aria-label="Due date">';
+}
+function agentRow(a,d,rn,nKids,open){
+  var gd=count(a,'goals',function(g){return g.done}),gt=(a.goals||[]).length,td=count(a,'todos',function(t){return t.status==='done'}),tt=(a.todos||[]).length,p=agentPct(a),late=lateCount(a),nd=nextDue(a),id=esc(a.id);
+  return '<tr class="r-agent'+(late?' hot':'')+'"><td class="rn">'+rn+'</td>'
+   +'<td class="name" style="padding-left:'+(8+d*20)+'px"><button class="caret" data-act="toggle" data-id="'+id+'" aria-expanded="'+open+'" aria-label="'+(open?'Collapse ':'Expand ')+esc(a.name)+'">'+(open?'▾':'▸')+'</button><button class="nm" data-act="toggle" data-id="'+id+'">'+esc(a.name)+'</button>'+(a.example?' <span class="tag">Example</span>':'')+(nKids?' <span class="cnt">'+nKids+' report'+(nKids>1?'s':'')+'</span>':'')+'</td>'
+   +'<td class="kind">'+esc(a.level||'Agent')+'</td>'
+   +'<td><select class="cell" id="ast-'+id+'" data-status="'+id+'" aria-label="Status of '+esc(a.name)+'">'+['active','paused','draft'].map(function(s){return '<option value="'+s+'"'+((a.status||'active')===s?' selected':'')+'>'+statusLabel(s)+'</option>'}).join('')+'</select></td>'
+   +'<td class="mono'+(nd&&nd<today()?' bad':'')+'">'+(nd||'—')+'</td>'
+   +'<td class="mono">'+gd+'/'+gt+'</td>'
+   +'<td class="mono">'+td+'/'+tt+(late?' <span class="bad">'+late+' late</span>':'')+'</td>'
+   +'<td class="mono '+tone(p)+'">'+(p==null?'—':p+'%')+'</td>'
+   +'<td class="detail">'+esc(a.role||'')+'</td><td>'+esc(a.reportsTo||'—')+'</td><td class="proj">'+esc(shortName(a.projectId))+'</td>'
+   +'<td class="act"><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button><button class="btn small" data-act="open-agent" data-id="'+id+'">Profile</button></td></tr>';
+}
+function subRow(nx,d,cls,nameHTML,kind,statusHTML,dueHTML,kpiHTML,detail){
+  return '<tr class="r-sub '+cls+'"><td class="rn">'+nx()+'</td><td class="name" style="padding-left:'+(8+(d+1)*20)+'px">'+nameHTML+'</td><td class="kind">'+kind+'</td><td>'+(statusHTML||'')+'</td><td>'+(dueHTML||'')+'</td><td></td><td></td><td>'+(kpiHTML||'')+'</td><td class="detail">'+esc(detail||'')+'</td><td></td><td></td><td></td></tr>';
+}
+function subRows(a,d,nx){
+  var h='',id=esc(a.id);
+  (a.goals||[]).forEach(function(g,i){
+    var late=isLate('goal',g);
+    h+=subRow(nx,d,late?'hot':'','<label for="g-'+id+'-'+i+'"><input type="checkbox" id="g-'+id+'-'+i+'" data-set="goal" data-f="done" data-id="'+id+'" data-i="'+i+'"'+(g.done?' checked':'')+'><span>'+esc(g.text)+'</span></label>','Goal',g.done?'Met':late?'<span class="bad">Late</span>':'Open',dateInput('goal',a.id,i,g.due),'',[g.horizon,g.note].filter(Boolean).join(' · '));
+  });
+  (a.kras||[]).forEach(function(k){
+    h+=subRow(nx,d,'',esc(k.area),'KRA',esc(k.weight)+'%','','',k.outcome);
+  });
+  (a.kpis||[]).forEach(function(k,i){
+    var p=kpiPct(k),late=isLate('kpi',k);
+    h+=subRow(nx,d,late?'hot':'',esc(k.name),'KPI',p==null?'No reading':'<span class="'+(p>=90?'':p>=60?'':'bad')+'">'+p+'%</span>',dateInput('kpi',a.id,i,k.due),
+      '<input type="number" step="any" class="cell num" id="kc-'+id+'-'+i+'" data-set="kpi" data-f="current" data-id="'+id+'" data-i="'+i+'" value="'+(k.current==null?'':esc(k.current))+'" placeholder="now" aria-label="Current value"> / <input type="number" step="any" class="cell num" id="kt-'+id+'-'+i+'" data-set="kpi" data-f="target" data-id="'+id+'" data-i="'+i+'" value="'+(k.target==null?'':esc(k.target))+'" placeholder="target" aria-label="Target">',
+      [k.unit,k.cadence,k.dir==='down'?'lower is better':'higher is better',k.note].filter(Boolean).join(' · '));
+  });
+  (a.todos||[]).forEach(function(t,i){
+    var late=isLate('todo',t),s=t.status||'todo';
+    h+=subRow(nx,d,late?'hot':'',(isBlocked(t)?'<span class="blocked">':'<span>')+esc(t.text)+'</span>','Todo',
+      '<select class="cell" id="s-todo-'+id+'-'+i+'" data-set="todo" data-f="status" data-id="'+id+'" data-i="'+i+'" aria-label="Todo status">'+[['todo','To do'],['doing','In progress'],['done','Done']].map(function(o){return '<option value="'+o[0]+'"'+(s===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>',
+      dateInput('todo',a.id,i,t.due),'',t.note||'');
+  });
+  (a.routines||[]).forEach(function(r,i){
+    h+=subRow(nx,d,routineLate(r)?'hot':'',esc(r.name),'Routine',routineSel(a.id,i,r.state),dateInput('routine',a.id,i,r.next),'',[r.cadence,r.note].filter(Boolean).join(' · '));
+  });
+  (a.memory||[]).forEach(function(m){h+=subRow(nx,d,'',esc(m.text),'Memory','','','',m.at||'')});
+  (a.docs||[]).forEach(function(x){h+=subRow(nx,d,'',esc(x.title),'Doc','','','',[x.path,x.note].filter(Boolean).join(' · '))});
+  (a.skills||[]).forEach(function(x){h+=subRow(nx,d,'',esc(x.name),'Skill','','','',x.note||'')});
+  h+=subRow(nx,d,'add','<input type="text" class="cell" id="nt-'+id+'" data-newtodo="'+id+'" placeholder="Add a todo, press Enter" aria-label="New todo for '+esc(a.name)+'">','','','','','');
+  return h;
+}
+var HEAD='<thead><tr><th class="rn">#</th><th>Name</th><th>Kind</th><th>Status</th><th>Due</th><th>Goals</th><th>Todos</th><th>KPI</th><th>Detail</th><th>Reports to</th><th>Project</th><th></th></tr></thead>';
+function rosterView(list){
+  if(!S.loaded)return '<p class="hint">Loading agents…</p>';
+  if(!list.length)return emptyHTML();
+  var T=buildTree(list),n=0,filtering=!!(S.q.trim()||S.flt!=='all'),memo={},out='';
+  function nx(){return ++n}
+  function vis(a){if(memo[a.id]!=null)return memo[a.id];var v=passF(a)||(T.kids[a.id]||[]).some(vis);memo[a.id]=v;return v}
+  function walk(a,d){
+    if(!vis(a))return;
+    var all=T.kids[a.id]||[],open=!!S.open[a.id];
+    out+=agentRow(a,d,nx(),all.length,open);
+    if(open)out+=subRows(a,d,nx);
+    if(open||filtering)all.filter(vis).forEach(function(k){walk(k,d+1)});
+  }
+  T.roots.forEach(function(r){walk(r,0)});
+  if(!out)return toolbarHTML(true)+'<div class="empty"><h3>Nothing matches</h3><p>Clear the search or change the filter.</p></div>';
+  return toolbarHTML(true)+'<div class="sheetwrap"><table class="sheet">'+HEAD+'<tbody>'+out+'</tbody></table></div><p class="hint">Click a name to expand its goals, KRAs, KPIs, todos and reports. Dates, statuses and readings are editable in the grid.</p>';
+}
+function todosView(list){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  var items=[],q=S.q.trim().toLowerCase();
+  list.forEach(function(a){(a.todos||[]).forEach(function(t,i){items.push({a:a,t:t,i:i})})});
+  items=items.filter(function(x){
+    if(S.flt==='attention'&&!(isLate('todo',x.t)||isBlocked(x.t)))return false;
+    if(S.flt==='active'&&x.a.status!=='active')return false;
+    if(S.flt==='draft'&&x.a.status!=='draft')return false;
+    if(q&&(x.t.text+' '+x.a.name).toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  if(!items.length)return toolbarHTML(false)+(list.length?'<div class="empty"><h3>No todos match</h3><p>Clear the search or change the filter.</p></div>':emptyHTML());
+  var rank={doing:0,todo:1,done:2};
+  items.sort(function(x,y){
+    var lx=isLate('todo',x.t)?0:1,ly=isLate('todo',y.t)?0:1;
+    return lx-ly||(rank[x.t.status||'todo']-rank[y.t.status||'todo'])||String(x.t.due||'9999').localeCompare(String(y.t.due||'9999'))||String(x.a.name).localeCompare(String(y.a.name));
+  });
+  var rows=items.map(function(x,k){
+    var s=x.t.status||'todo',id=esc(x.a.id),late=isLate('todo',x.t);
+    return '<tr class="'+(late?'hot':'')+'"><td class="rn">'+(k+1)+'</td><td class="name'+(isBlocked(x.t)?' blocked':'')+'">'+esc(x.t.text)+'</td>'
+     +'<td><button class="nm" data-act="chat-open" data-id="'+id+'" title="Talk to this agent">'+esc(x.a.name)+'</button></td><td class="proj">'+esc(shortName(x.a.projectId))+'</td>'
+     +'<td><select class="cell" id="ts-'+id+'-'+x.i+'" data-set="todo" data-f="status" data-id="'+id+'" data-i="'+x.i+'" aria-label="Todo status">'+[['todo','To do'],['doing','In progress'],['done','Done']].map(function(o){return '<option value="'+o[0]+'"'+(s===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></td>'
+     +'<td>'+dateInput('todo',x.a.id,x.i,x.t.due)+'</td><td class="detail">'+esc(x.t.note||'')+'</td></tr>';
+  }).join('');
+  return toolbarHTML(false)+'<div class="sheetwrap"><table class="sheet" style="min-width:900px"><thead><tr><th class="rn">#</th><th>Todo</th><th>Agent</th><th>Project</th><th>Status</th><th>Due</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function sheetBlock(title,heads,rows){
+  return '<div class="block"><h2>'+title+'</h2><div class="sheetwrap"><table class="sheet" style="min-width:760px"><thead><tr><th class="rn">#</th>'+heads.map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+(rows||'<tr><td class="rn"></td><td colspan="'+heads.length+'" class="hint">Nothing yet</td></tr>')+'</tbody></table></div></div>';
+}
+function scoreView(list){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!list.length)return emptyHTML();
+  var g=0,k=0,p=0,gr='',kr='',pr='';
+  list.slice().sort(sortAg).forEach(function(a){
+    (a.goals||[]).forEach(function(x){g++;gr+='<tr class="'+(isLate('goal',x)?'hot':'')+'"><td class="rn">'+g+'</td><td>'+esc(a.name)+'</td><td class="name">'+esc(x.text)+'</td><td>'+esc(x.horizon||'')+'</td><td class="mono">'+esc(x.due||'—')+'</td><td>'+(x.done?'Met':isLate('goal',x)?'<span class="bad">Late</span>':'Open')+'</td></tr>'});
+    (a.kras||[]).forEach(function(x){k++;kr+='<tr><td class="rn">'+k+'</td><td>'+esc(a.name)+'</td><td>'+esc(x.area)+'</td><td class="detail">'+esc(x.outcome)+'</td><td class="mono">'+esc(x.weight)+'%</td></tr>'});
+    (a.kpis||[]).forEach(function(x){p++;var pc=kpiPct(x);pr+='<tr class="'+(isLate('kpi',x)?'hot':'')+'"><td class="rn">'+p+'</td><td>'+esc(a.name)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.cadence||'')+'</td><td class="mono">'+(x.target==null||x.target===''?'not set':(x.dir==='down'?'≤ ':'≥ ')+esc(fmtNum(x.target))+' '+esc(x.unit||''))+'</td><td class="mono">'+(x.current==null?'—':esc(fmtNum(x.current)))+'</td><td class="mono">'+esc(x.due||'—')+'</td><td class="mono '+tone(pc)+'">'+(pc==null?'not tracked':pc+'%')+'</td></tr>'});
+  });
+  return toolbarHTML(false).replace(/<input[^>]*data-q[^>]*>/,'').replace(/<select[^>]*data-flt[\s\S]*?<\/select>/,'')
+   +'<div style="display:flex;flex-direction:column;gap:18px">'
+   +sheetBlock('Goals',['Agent','Goal','Horizon','Due','Status'],gr)
+   +sheetBlock('Key result areas',['Agent','Area','Outcome','Weight'],kr)
+   +sheetBlock('KPIs',['Agent','KPI','Cadence','Target','Current','Due','Attainment'],pr)+'</div>';
+}
+function libView(list){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!list.length)return emptyHTML();
+  var r1='',m1='',d1='',s1='',a1=0,b1=0,c1=0,e1=0;
+  list.slice().sort(sortAg).forEach(function(a){
+    (a.routines||[]).forEach(function(x,i){a1++;r1+='<tr class="'+(routineLate(x)?'hot':'')+'"><td class="rn">'+a1+'</td><td>'+esc(a.name)+'</td><td class="name">'+esc(x.name)+'</td><td>'+esc(x.cadence||'')+'</td><td>'+routineSel(a.id,i,x.state)+'</td><td>'+dateInput('routine',a.id,i,x.next)+'</td><td class="detail">'+esc(x.note||'')+'</td></tr>'});
+    (a.memory||[]).forEach(function(x){b1++;m1+='<tr><td class="rn">'+b1+'</td><td>'+esc(a.name)+'</td><td class="name">'+esc(x.text)+'</td><td class="mono">'+esc(x.at||'')+'</td><td>'+esc(x.src||'')+'</td></tr>'});
+    (a.docs||[]).forEach(function(x){c1++;d1+='<tr><td class="rn">'+c1+'</td><td>'+esc(a.name)+'</td><td class="name">'+esc(x.title)+'</td><td class="mono">'+esc(x.path||'')+'</td><td class="detail">'+esc(x.note||'')+'</td></tr>'});
+    (a.skills||[]).forEach(function(x){e1++;s1+='<tr><td class="rn">'+e1+'</td><td>'+esc(a.name)+'</td><td class="name">'+esc(x.name)+'</td><td class="detail">'+esc(x.note||'')+'</td></tr>'});
+  });
+  return toolbarHTML(false).replace(/<input[^>]*data-q[^>]*>/,'').replace(/<select[^>]*data-flt[\s\S]*?<\/select>/,'')
+   +'<div style="display:flex;flex-direction:column;gap:18px">'
+   +sheetBlock('Routines',['Agent','Routine','Cadence','State','Next run','Note'],r1)
+   +sheetBlock('Memory',['Agent','Note','Added','Source'],m1)
+   +sheetBlock('Docs',['Agent','Doc','Path or link','Note'],d1)
+   +sheetBlock('Skills',['Agent','Skill','What it does'],s1)
+   +'</div><p class="hint">Routines here are a register: a state and a next-run date you set. Nothing on this page runs them. Add or remove items in each agent\'s profile.</p>';
+}
+function shellHTML(){
+  var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
+  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+topHTML(repo)+(S.scope!=='all'?briefHTML(S.scope):'')+statsHTML(list)+tabsHTML(list)
+   +'<section>'+(S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):scoreView(list))+'</section></main></div>';
+}
+
+var LSPEC={
+  routines:{t:'Routines',main:'name',f:[['name','Routine, e.g. Weekly regulation scan'],['cadence','Cadence, e.g. weekly Mon 09:00 IST']],none:'No routines recorded.'},
+  memory:{t:'Memory',main:'text',f:[['text','Something this agent should always keep in mind']],none:'No memory notes yet.'},
+  docs:{t:'Docs',main:'title',f:[['title','Doc title'],['path','Path or link']],none:'No docs linked.'},
+  skills:{t:'Skills',main:'name',f:[['name','Skill name'],['note','What it does']],none:'No skills recorded.'}
+};
+function libSec(a,key){
+  var sp=LSPEC[key],id=esc(a.id),arr=a[key]||[];
+  var h='<section class="sec"><h3>'+sp.t+'</h3>'+(arr.map(function(x,i){
+    var sub=[];
+    if(key==='routines')sub.push(x.cadence);
+    if(key==='memory')sub.push(x.at,x.src);
+    if(key==='docs')sub.push(x.path,x.note);
+    if(key==='skills')sub.push(x.note);
+    var main=esc(x[sp.main]);
+    if(key==='docs'&&/^https?:\/\//.test(x.path||''))main='<a href="'+esc(x.path)+'" target="_blank" rel="noopener noreferrer">'+main+'</a>';
+    return '<div class="rowline"><span class="grow">'+main+'<small>'+sub.filter(Boolean).map(esc).join(' · ')+(key==='routines'&&x.note?' · '+esc(x.note):'')+'</small></span>'
+     +(key==='routines'?routineSel(a.id,i,x.state)+dateInput('routine',a.id,i,x.next):'')
+     +'<button class="btn small" data-act="lib-del" data-key="'+key+'" data-id="'+id+'" data-i="'+i+'" aria-label="Remove">Remove</button></div>';
+  }).join('')||'<p class="hint">'+sp.none+'</p>');
+  h+='<div class="addrow">'+sp.f.map(function(f){return '<input type="text" id="lib-'+key+'-'+f[0]+'" placeholder="'+esc(f[1])+'" aria-label="'+esc(f[1])+'" style="flex:1;min-width:0">'}).join('')
+   +'<button class="btn small" data-act="lib-add" data-key="'+key+'" data-id="'+id+'">Add</button></div></section>';
+  return h;
+}
+function panelHTML(){
+  var a=S.openAgent&&S.agents.filter(function(x){return x.id===S.openAgent})[0];
+  if(!a)return '';
+  var p=agentPct(a),id=esc(a.id);
+  var h='<div class="scrim" data-act="close-panel"></div><aside class="panel" role="dialog" aria-label="Agent profile">';
+  h+='<div class="panel-head"><div><h2>'+esc(a.name)+(a.example?' <span class="tag">Example</span>':'')+'</h2><p class="role">'+esc(a.role)+'</p></div><div class="btns"><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button><button class="btn small" data-act="close-panel">Close</button></div></div><div class="panel-body">';
+  h+='<div class="facts"><div><span>Project</span><b>'+esc(fullName(a.projectId))+'</b></div><div><span>Reports to</span><b>'+esc(a.reportsTo||'—')+'</b></div>'
+   +'<div><span>Status</span><select id="st-'+id+'" data-status="'+id+'" aria-label="Status">'+['active','paused','draft'].map(function(s){return '<option value="'+s+'"'+((a.status||'active')===s?' selected':'')+'>'+statusLabel(s)+'</option>'}).join('')+'</select></div>'
+   +'<div><span>Created</span><b>'+esc(fmtDate(a.createdAt)||'—')+(a.source==='claude'?' · drafted by Claude':a.source==='template'?' · from template':a.source==='repo'?' · imported from role file':'')+'</b></div></div>';
+  h+='<section class="sec"><h3>Job description</h3><p>'+esc(a.purpose||'')+'</p>'
+   +((a.task)?'<p class="hint">Task given: '+esc(a.task)+'</p>':'')
+   +((a.requirements||[]).length?'<h3 style="margin-top:6px">Requirements</h3><ul class="plain">'+a.requirements.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul>':'')
+   +((a.tools||[]).length?'<h3 style="margin-top:6px">Tools and access</h3><div class="chips">'+a.tools.map(function(x){return '<span class="chip">'+esc(x)+'</span>'}).join('')+'</div>':'')+'</section>';
+  h+='<section class="sec"><h3>Responsibilities</h3><ul class="plain">'+((a.responsibilities||[]).map(function(x){return '<li>'+esc(x)+'</li>'}).join('')||'<li>None listed</li>')+'</ul></section>';
+  if((a.may||[]).length)h+='<section class="sec"><h3>May</h3><ul class="plain">'+a.may.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></section>';
+  if((a.mustNot||[]).length)h+='<section class="sec"><h3>Must not</h3><ul class="plain">'+a.mustNot.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></section>';
+  if(a.handsOff||a.reads)h+='<section class="sec"><h3>Handoffs</h3>'+(a.handsOff?'<p><b>Hands off to:</b> '+esc(a.handsOff)+'</p>':'')+(a.reads?'<p><b>Reads at the start of a run:</b> '+esc(a.reads)+'</p>':'')+'</section>';
+  h+='<section class="sec"><h3>Goals</h3>'+((a.goals||[]).map(function(g,i){return '<div class="rowline '+(g.done?'done':'')+'"><input type="checkbox" id="g-'+id+'-p'+i+'" data-set="goal" data-f="done" data-id="'+id+'" data-i="'+i+'"'+(g.done?' checked':'')+' aria-label="Goal met"><label class="grow" for="g-'+id+'-p'+i+'">'+esc(g.text)+'<small>'+esc([g.horizon,g.note].filter(Boolean).join(' · '))+'</small></label>'+dateInput('goal',a.id,i,g.due)+'</div>'}).join('')||'<p class="hint">No goals set.</p>')
+   +'<div class="addrow"><input type="text" id="goal-new" placeholder="Add a goal" aria-label="New goal"><button class="btn small" data-act="goal-add" data-id="'+id+'">Add</button></div></section>';
+  h+='<section class="sec"><h3>Key result areas</h3>'+((a.kras||[]).map(function(k){return '<div class="rowline"><span class="grow"><b>'+esc(k.area)+'</b><small style="font-family:var(--sans);font-size:13px;color:var(--fg)">'+esc(k.outcome)+'</small></span><span class="mono">'+esc(k.weight)+'%</span></div>'}).join('')||'<p class="hint">No KRAs set.</p>')+'</section>';
+  h+='<section class="sec"><h3>KPIs · '+(p==null?'no readings yet':'attainment '+p+'%')+'</h3>'+((a.kpis||[]).map(function(k,i){
+    var kp=kpiPct(k);
+    return '<div class="kpi '+tone(kp)+'"><div><b>'+esc(k.name)+'</b><div class="hint">'+esc(k.cadence||'')+' · '+(k.dir==='down'?'lower is better':'higher is better')+'</div></div>'
+     +'<div class="tg"><input type="number" step="any" class="kin" id="kpi-'+id+'-'+i+'" data-set="kpi" data-f="current" data-id="'+id+'" data-i="'+i+'" value="'+(k.current==null?'':esc(k.current))+'" placeholder="current" aria-label="Current value"> / <input type="number" step="any" class="kin" id="kpt-'+id+'-'+i+'" data-set="kpi" data-f="target" data-id="'+id+'" data-i="'+i+'" value="'+(k.target==null?'':esc(k.target))+'" placeholder="target" aria-label="Target"> '+esc(k.unit||'')+'</div>'
+     +'<div class="bar"><i style="width:'+(kp==null?0:kp)+'%"></i></div></div>';
+  }).join('')||'<p class="hint">No KPIs set.</p>')+'</section>';
+  h+='<section class="sec"><h3>Todos</h3>'+((a.todos||[]).map(function(t,i){
+    var s=t.status||'todo';
+    return '<div class="rowline '+(s==='done'?'done':'')+'"><button class="st" data-s="'+s+'" data-act="todo-cycle" data-id="'+id+'" data-i="'+i+'" aria-label="Status: '+s+'. Click to change">'+(s==='done'?'✓':s==='doing'?'…':'')+'</button><span class="grow">'+esc(t.text)+'<small>'+({todo:'To do',doing:'In progress',done:'Done'}[s])+(t.note?' · '+esc(t.note):'')+'</small></span>'+dateInput('todo',a.id,i,t.due)+'</div>';
+  }).join('')||'<p class="hint">No todos yet.</p>')
+   +'<div class="addrow"><input type="text" id="todo-new" placeholder="Add a todo" aria-label="New todo"><button class="btn small" data-act="todo-add" data-id="'+id+'">Add</button></div></section>';
+  ['routines','memory','docs','skills'].forEach(function(k){h+=libSec(a,k)});
+  h+='<div class="foot"><button class="btn small" data-act="copy-jd" data-id="'+id+'">Copy job description</button>';
+  if(S.confirmDelete===a.id)h+='</div><div class="confirm"><span>Delete this agent with its goals, KPIs and todos?</span><button class="btn small danger" data-act="delete-confirm" data-id="'+id+'">Delete</button><button class="btn small" data-act="delete-cancel">Keep</button></div>';
+  else h+='<button class="btn small danger" data-act="delete-ask" data-id="'+id+'">Delete agent</button></div>';
+  return h+'</div></aside>';
+}
+
+function chatHTML(){
+  var c=S.chat,a=c&&S.agents.filter(function(x){return x.id===c.id})[0];
+  if(!c||!a)return '';
+  var msgs=(S.chats[a.id]&&S.chats[a.id].messages)||[],can=!!SAMPLE&&!S.sampleBlocked,dis=(!can||c.busy||c.extracting)?' disabled':'';
+  var hasReply=msgs.some(function(m){return m.role==='agent'});
+  var h='<div class="scrim" data-act="chat-close"></div><aside class="panel chat" role="dialog" aria-label="Chat with '+esc(a.name)+'">';
+  h+='<div class="panel-head"><div><h2>'+esc(a.name)+'</h2><p class="role">'+esc(a.role)+' · '+esc(shortName(a.projectId))+'</p></div><div class="btns"><button class="btn small" data-act="open-agent" data-id="'+esc(a.id)+'">Profile</button><button class="btn small" data-act="chat-close">Close</button></div></div>';
+  h+='<p class="chat-note">Claude speaks as this role, using its role file and the records on this page. It has no run logs, so its reasons are a reading of the records, not a report of what happened.'+(can?'':' Chat is unavailable in this view.')+'</p>';
+  h+='<div class="chat-quick"><button class="btn small" data-act="chat-hold"'+dis+'>Hold to account</button><button class="btn small" data-act="chat-timelines"'+dis+'>Ask for timelines</button><button class="btn small" data-act="chat-routines"'+dis+'>Check routines</button><button class="btn small" data-act="chat-complain"'+(can?'':' disabled')+'>Complain</button></div>';
+  h+='<div class="chat-log" id="chat-log">';
+  if(!msgs.length&&!c.busy)h+='<p class="hint">No messages yet. Use Hold to account to ask why items are late, what blocks them and when they will be done.</p>';
+  msgs.forEach(function(m){h+='<div class="msg '+(m.role==='agent'?'agent':'founder')+'"><span class="who">'+(m.role==='agent'?esc(a.name):'You')+'</span><div class="txt">'+esc(m.text)+'</div></div>'});
+  if(c.busy)h+='<div class="msg agent"><span class="who">'+esc(a.name)+'</span><div class="txt" id="chat-stream">'+(c.partial?esc(c.partial):'Thinking…')+'</div></div>';
+  h+='</div>';
+  if(c.proposals){
+    h+='<div class="props"><h3>From this chat</h3>';
+    if(!c.proposals.length)h+='<p class="hint">The agent made no commitments to record. Ask for timelines, then capture again.</p>';
+    else{
+      c.proposals.forEach(function(p,i){
+        var list=p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis,it=list&&list[p.index],label=p.kind==='memory'?p.note:it?(it.text||it.name):'(item removed)';
+        h+='<div class="prop"><div class="grow"><b>'+({todo:'Todo',goal:'Goal',kpi:'KPI',routine:'Routine',memory:'Add to memory'}[p.kind])+':</b> '+esc(label)+'<small>'+[p.due?(p.kind==='routine'?'next run ':'due ')+p.due:'',p.status?'status '+p.status:'',p.kind==='memory'?'':p.note].filter(Boolean).map(esc).join(' · ')+'</small></div>'
+         +(p.state==='open'?'<span><button class="btn small primary" data-act="prop-apply" data-i="'+i+'">Apply</button> <button class="btn small" data-act="prop-skip" data-i="'+i+'">Skip</button></span>':'<span class="hint">'+(p.state==='applied'?'Applied':'Skipped')+'</span>')+'</div>';
+      });
+      if(c.proposals.some(function(p){return p.state==='open'}))h+='<div><button class="btn small primary" data-act="prop-all">Apply all</button></div>';
+    }
+    h+='</div>';
+  }
+  if(c.error)h+='<div class="err" style="margin:0 16px 8px">'+esc(c.error)+'</div>';
+  h+='<div class="chat-compose"><textarea id="chat-input" data-chat placeholder="Complain, ask why something is late, or agree actions. Enter sends, Shift+Enter adds a line."'+(can?'':' disabled')+'>'+esc(c.draft)+'</textarea><div class="row">'
+   +'<button class="btn primary" data-act="chat-send"'+dis+'>Send</button>'
+   +(c.busy?'<button class="btn" data-act="chat-stop">Stop</button>':'')
+   +'<button class="btn" data-act="chat-capture"'+((!can||c.busy||c.extracting||!hasReply)?' disabled':'')+'>'+(c.extracting?'Reading…':'Capture commitments')+'</button>'
+   +'<button class="btn" data-act="chat-clear"'+(msgs.length&&!c.busy?'':' disabled')+'>'+(c.confirmClear?'Click again to clear':'Clear chat')+'</button></div></div>';
+  return h+'</aside>';
+}
+
+function wizardHTML(){
+  var w=S.wizard;if(!w)return '';
+  var h='<div class="scrim" data-act="wizard-close"></div><div class="modal" role="dialog" aria-label="Build an agent"><div class="modal-head"><h2>Build an agent</h2><p>'+(w.step===1?'Accept a project and describe the task. The agent is drafted for you to review.':'Review and edit the draft. Nothing is created until you confirm.')+'</p><div class="steps"><span>'+(w.step===1?'<b>1 Project and task</b>':'1 Project and task')+'</span><span>→</span><span>'+(w.step===2?'<b>2 Review spec</b>':'2 Review spec')+'</span></div></div><div class="modal-body">';
+  if(w.error)h+='<div class="err">'+esc(w.error)+'</div>';
+  if(w.step===1){
+    var r=repoById(w.projectId);
+    h+='<div class="fld"><label for="w-project">Project</label><select id="w-project" data-w1="projectId" style="width:100%">'+S.repos.map(function(x){return '<option value="'+esc(rid(x))+'"'+(rid(x)===w.projectId?' selected':'')+'>'+esc(x.full_name)+' ('+esc(x.visibility)+')</option>'}).join('')+'</select>'+(r?'<span class="hint">Last pushed '+esc(ago(r.pushed_at))+'</span>':'')+'</div>';
+    h+='<div class="fld"><label for="w-brief">Project brief</label><textarea id="w-brief" data-w1="brief" placeholder="What the project is, who it is for, what matters now. The more you give, the less generic the agent.">'+esc(w.brief)+'</textarea><span class="hint">Saved to the project when you continue.</span></div>';
+    h+='<div class="fld"><label for="w-task">What should this agent do?</label><input type="text" id="w-task" data-w1="task" value="'+esc(w.task)+'" placeholder="Example: answer customer emails and keep the FAQ current"></div>';
+    h+='<div class="fld"><label for="w-autonomy">Autonomy</label><select id="w-autonomy" data-w1="autonomy" style="width:100%"><option value="review"'+(w.autonomy==='review'?' selected':'')+'>Drafts only, I approve every action</option><option value="guardrails"'+(w.autonomy==='guardrails'?' selected':'')+'>Acts within written guardrails</option><option value="full"'+(w.autonomy==='full'?' selected':'')+'>Runs end to end, reports afterwards</option></select></div>';
+    if(w.busy)h+='<div class="note">Claude is drafting the role. This can take up to a minute.</div>';
+  }else{
+    var f=w.fields,ta=function(k,lab,hint,rows){return '<div class="fld"><label for="wf-'+k+'">'+lab+'</label><textarea id="wf-'+k+'" data-wf="'+k+'" rows="'+(rows||4)+'">'+esc(f[k])+'</textarea>'+(hint?'<span class="hint">'+hint+'</span>':'')+'</div>'};
+    h+='<div class="note">'+(w.source==='claude'?'Drafted by Claude from your brief and task. Check every line; edit freely.':'Drafted from a built-in template for this kind of task. Edit freely.')+'</div>';
+    h+='<div class="two"><div class="fld"><label for="wf-name">Agent name</label><input type="text" id="wf-name" data-wf="name" value="'+esc(f.name)+'"></div><div class="fld"><label for="wf-role">Role / job title</label><input type="text" id="wf-role" data-wf="role" value="'+esc(f.role)+'"></div></div>';
+    h+='<div class="fld"><label for="wf-reportsTo">Reports to</label><input type="text" id="wf-reportsTo" data-wf="reportsTo" value="'+esc(f.reportsTo)+'"></div>';
+    h+=ta('purpose','Job description','Two or three sentences on what this role is for.',3);
+    h+=ta('responsibilities','Responsibilities','One per line.',6)+ta('requirements','Requirements','One per line.',4)+ta('tools','Tools and access','One per line.',3);
+    h+=ta('goals','Goals','One per line: goal | horizon (30 days, 90 days, 6 months).',4);
+    h+=ta('kras','Key result areas','One per line: area | outcome | weight %.',4);
+    h+=ta('kpis','KPIs','One per line: name | target | unit | cadence | higher is better or lower is better.',5);
+    h+=ta('todos','Todos','One per line, in the order they should happen.',7);
+  }
+  h+='</div><div class="modal-foot">';
+  if(w.step===1){
+    h+='<button class="btn" data-act="wizard-close">Cancel</button>';
+    if(w.busy)h+='<button class="btn" data-act="wiz-stop">Stop</button>';
+    else{
+      h+='<button class="btn" data-act="wiz-template">Use template draft</button>';
+      if(SAMPLE&&!S.sampleBlocked)h+='<button class="btn primary" data-act="wiz-generate">Generate with Claude</button>';
+    }
+  }else{
+    h+='<button class="btn" data-act="wiz-back">Back</button><button class="btn primary" data-act="wiz-create">Create agent</button>';
+  }
+  return h+'</div></div>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  var ae=document.activeElement,aid=ae&&ae.id,s0=null,s1=null;
+  try{if(ae&&ae.selectionStart!=null){s0=ae.selectionStart;s1=ae.selectionEnd}}catch(e){}
+  var pb=overlay.querySelector('.panel-body'),pt=pb?pb.scrollTop:0,mb=overlay.querySelector('.modal-body'),mt=mb?mb.scrollTop:0;
+  var lg=document.getElementById('chat-log'),lt=lg?lg.scrollTop:0,near=lg?(lg.scrollHeight-lg.scrollTop-lg.clientHeight<90):true;
+  var sw=app.querySelector('.sheetwrap'),sl=sw?sw.scrollLeft:0,stp=sw?sw.scrollTop:0;
+  var ms=document.scrollingElement?document.scrollingElement.scrollTop:0;
+  app.innerHTML=shellHTML();
+  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML();
+  var pb2=overlay.querySelector('.panel-body');if(pb2)pb2.scrollTop=pt;
+  var mb2=overlay.querySelector('.modal-body');if(mb2)mb2.scrollTop=mt;
+  var lg2=document.getElementById('chat-log');
+  if(lg2){if(near||(S.chat&&S.chat.fresh)){lg2.scrollTop=lg2.scrollHeight;if(S.chat)S.chat.fresh=false}else lg2.scrollTop=lt}
+  var sw2=app.querySelector('.sheetwrap');if(sw2){sw2.scrollLeft=sl;sw2.scrollTop=stp}
+  if(document.scrollingElement)document.scrollingElement.scrollTop=ms;
+  if(aid){var el=document.getElementById(aid);if(el){try{el.focus({preventScroll:true});if(s0!=null&&el.setSelectionRange)el.setSelectionRange(s0,s1)}catch(e){}}}
+}
+
+/* ---------- wizard actions ---------- */
+function openWizard(projectId){
+  var pid=projectId||(S.scope!=='all'?S.scope:rid(S.repos[0]));
+  S.wizard={step:1,projectId:pid,brief:(S.projects[pid]&&S.projects[pid].brief)||'',task:'',autonomy:'review',busy:false,error:'',fields:null,source:'template',ctl:null};
+  S.chat=null;S.openAgent=null;render();
+  var t=document.getElementById('w-task');if(t)t.focus();
+}
+function toStep2(spec,source){
+  var w=S.wizard;
+  if(w.brief.trim()!==((S.projects[w.projectId]&&S.projects[w.projectId].brief)||'').trim())saveBrief(w.projectId,w.brief,true);
+  w.fields=toFields(normalizeSpec(spec));w.source=source;w.step=2;w.error='';w.busy=false;w.ctl=null;render();
+}
+function wizTemplate(){
+  var w=S.wizard;if(!w.task.trim()){w.error='Describe what the agent should do first.';render();return}
+  toStep2(templateSpec(w),'template');
+}
+async function wizGenerate(){
+  var w=S.wizard;if(!w.task.trim()){w.error='Describe what the agent should do first.';render();return}
+  w.busy=true;w.error='';w.ctl=new AbortController();render();
+  try{
+    var spec=await SAMPLE.json(buildPrompt(w),{signal:w.ctl.signal,cache:false});
+    if(S.wizard!==w)return;
+    if(!spec||typeof spec!=='object'||Array.isArray(spec))throw {code:'invalid_json'};
+    toStep2(spec,'claude');
+  }catch(e){
+    if(S.wizard!==w)return;
+    w.busy=false;w.ctl=null;
+    var c=e&&e.code;
+    if(c==='cancelled'){w.error=''}
+    else if(c==='not_granted'||c==='sampling_disabled'||c==='not_declared'){S.sampleBlocked=true;w.error='Claude drafting is not available for this page. Use the template draft instead.'}
+    else if(c==='rate_limited')w.error='Too many requests right now. Wait a minute and try again, or use the template draft.';
+    else if(c==='invalid_json')w.error='Claude replied in a format this page could not read. Try again, or use the template draft.';
+    else w.error='Claude could not draft the role. Try again, or use the template draft.';
+    render();
+  }
+}
+function createAgent(){
+  var w=S.wizard,f=w.fields;
+  if(!f.name.trim()||!f.role.trim()){w.error='Give the agent a name and a role.';render();return}
+  var s=fromFields(f);
+  var a={id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
+    purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,source:w.source,createdAt:Date.now()};
+  S.agents.unshift(a);persist('agents',a.id,a);
+  S.wizard=null;S.scope=w.projectId;S.tab='agents';S.openAgent=a.id;render();toast('Agent created');
+}
+function saveBrief(id,text,quiet){
+  var p=S.projects[id]||{};p.brief=text.trim();S.projects[id]=p;persist('projects',id,p);
+  if(!quiet){render();toast('Brief saved')}
+}
+async function sync(){
+  if(!MCP||S.syncing)return;
+  S.syncing=true;render();
+  try{
+    var r=await MCP.callTool('Claude Code Remote','list_repos',{limit:100},{cache:false});
+    var p=r&&r.payload;if(typeof p==='string'){try{p=JSON.parse(p)}catch(e){}}
+    var repos=(p&&p.repos)||(Array.isArray(p)?p:[]);
+    var items=repos.filter(function(x){return x&&x.full_name&&x.full_name.indexOf('/')>0}).map(function(x){return {full_name:x.full_name,url:x.url||('https://github.com/'+x.full_name),pushed_at:x.pushed_at||'',visibility:x.visibility||'private'}});
+    if(!items.length)throw {code:'empty'};
+    S.repos=items;S.syncedAt=Date.now();
+    persist('meta','repos',{items:items,syncedAt:S.syncedAt});
+    toast('Synced '+items.length+' repositories');
+  }catch(e){
+    var c=e&&e.code;
+    toast(c==='needs_reauth'||c==='server_not_connected'?'GitHub is not connected for this account. Reconnect it in claude.ai Settings, then sync again.':c==='not_in_manifest'||c==='consent_required'?'Sync was not allowed for this page.':c==='empty'?'GitHub returned no repositories.':'Sync failed. Try again in a moment.');
+  }
+  S.syncing=false;render();
+}
+
+/* ---------- agent chat ---------- */
+var ROUTINES='Go through each of your routines. For each one say whether the records show a next-run date, whether it is overdue, what it depends on, and the date you will commit to. Tell me if a routine has no cadence or no date.';
+var HOLD='Accountability review. Go through your todos, goals and KPIs one by one. For every item that is not done or not on track, tell me: (1) why it is not progressing, (2) what you need from me or another agent, and (3) a specific finish date. Finish with the three things you will do first.';
+var TIMELINES='Give me a dated timeline. For every open todo and every goal that is not met, a realistic finish date and what it depends on. Say which ones you cannot finish when I would expect, and why.';
+function chatAgent(){return S.chat&&S.agents.filter(function(x){return x.id===S.chat.id})[0]}
+function openChat(id){S.chat={id:id,draft:'',busy:false,partial:'',error:'',proposals:null,extracting:false,ctl:null,fresh:true,confirmClear:false};S.openAgent=null;S.wizard=null;render()}
+function closeChat(){if(S.chat&&S.chat.ctl)S.chat.ctl.abort();S.chat=null;render()}
+function recordsText(a){
+  var L2=[],td=today();
+  L2.push('Mission: '+(a.purpose||'(none)'));
+  if(a.reportsTo)L2.push('Reports to: '+a.reportsTo);
+  if(a.handsOff)L2.push('Hands off to: '+a.handsOff);
+  if(a.reads)L2.push('Reads at the start of a run: '+a.reads);
+  if((a.responsibilities||[]).length)L2.push('Responsibilities: '+a.responsibilities.join('; '));
+  if((a.may||[]).length)L2.push('You may: '+a.may.join('; '));
+  if((a.mustNot||[]).length)L2.push('You must not: '+a.mustNot.join('; '));
+  L2.push('Goals:');
+  (a.goals||[]).forEach(function(g,i){L2.push((i+1)+'. '+g.text+' | '+(g.done?'met':'not met')+(g.horizon?' | horizon '+g.horizon:'')+(g.due?' | due '+g.due+(isLate('goal',g)?' (overdue)':''):' | no due date')+(g.note?' | note: '+g.note:''))});
+  if(!(a.goals||[]).length)L2.push('(none)');
+  L2.push('Key result areas:');
+  (a.kras||[]).forEach(function(k,i){L2.push((i+1)+'. '+k.area+' ('+k.weight+'%): '+k.outcome)});
+  if(!(a.kras||[]).length)L2.push('(none defined)');
+  L2.push('KPIs:');
+  (a.kpis||[]).forEach(function(k,i){L2.push((i+1)+'. '+k.name+' | target '+(k.target==null||k.target===''?'not set':k.target+' '+(k.unit||''))+' | '+(k.dir==='down'?'lower is better':'higher is better')+' | '+(k.cadence||'')+' | current '+(k.current==null?'no reading':k.current)+(k.due?' | due '+k.due:' | no due date'))});
+  if(!(a.kpis||[]).length)L2.push('(none)');
+  L2.push('Todos:');
+  (a.todos||[]).forEach(function(t,i){L2.push((i+1)+'. '+t.text+' | '+(t.status||'todo')+(t.due?' | due '+t.due+(isLate('todo',t)?' (overdue)':''):' | no due date')+(t.note?' | note: '+t.note:''))});
+  if(!(a.todos||[]).length)L2.push('(none)');
+  L2.push('Routines (planned cadence and next-run date as recorded here; "planned" means not confirmed as scheduled):');
+  (a.routines||[]).forEach(function(r,i){L2.push((i+1)+'. '+r.name+' | '+(r.cadence||'no cadence')+' | '+(r.state||'planned')+(r.next?' | next run '+r.next+(routineLate(r)?' (overdue)':''):' | no next-run date')+(r.note?' | note: '+r.note:''))});
+  if(!(a.routines||[]).length)L2.push('(none)');
+  if((a.memory||[]).length){L2.push('Memory notes the founder wants you to keep in mind:');(a.memory||[]).forEach(function(m){L2.push('- '+m.text+(m.at?' ('+m.at+')':''))})}
+  if((a.docs||[]).length){L2.push('Docs you work from (you only know titles and paths, not contents):');(a.docs||[]).forEach(function(x){L2.push('- '+x.title+(x.path?' ['+x.path+']':'')+(x.note?': '+x.note:''))})}
+  if((a.skills||[]).length){L2.push('Skills you have:');(a.skills||[]).forEach(function(x){L2.push('- '+x.name+(x.note?': '+x.note:''))})}
+  return L2.join('\n');
+}
+function agentBrief(a){
+  var td=today(),pr=(S.projects[a.projectId]||{}).brief;
+  return 'You are playing the AI agent "'+a.name+'" ('+a.role+') on the project '+fullName(a.projectId)+'. The person talking to you is the founder who runs the project and is holding you accountable. Stay in role, in the first person, in plain direct language.\n\n'
+   +'Rules:\n'
+   +'- You have no run logs and no memory of past work beyond the records below. Never claim work is done unless the records say so.\n'
+   +'- When asked why something is stalled, ground the answer in the records (status, blocked or needs-founder tags in the todo text, priority, missing due dates, missing KPI targets or readings) and in your role limits (what you must not do, who you hand off to, approvals you need). If you do not know, say so and say what you need.\n'
+   +'- When asked for timelines, give specific dates (YYYY-MM-DD) after today, say what each depends on, and be honest about what cannot be done in time.\n'
+   +'- Routines show only a planned cadence and a recorded next-run date, not proof that a run happened. Docs are known by title and path only; do not describe their contents.\n'
+   +'- Do not invent tickets, numbers, people or events. Take complaints without defensiveness: say what you will change and by when.\n'
+   +'- Keep replies under about 200 words unless asked for more. Use a short list only when covering several items.\n\n'
+   +'Today is '+td+'.\n'+(pr?'Project brief: '+pr+'\n':'')+'\nYour records:\n'+recordsText(a);
+}
+function chatTurns(a){
+  var msgs=((S.chats[a.id]||{}).messages||[]).slice(-24),turns=[{role:'user',content:agentBrief(a)}];
+  msgs.forEach(function(m){turns.push({role:m.role==='agent'?'assistant':'user',content:m.text})});
+  return turns;
+}
+async function sendChat(text){
+  var c=S.chat,a=chatAgent();text=String(text||'').trim();
+  if(!c||!a||c.busy||!text)return;
+  if(!SAMPLE||S.sampleBlocked){c.error='Chat needs Claude access, which is not available in this view.';render();return}
+  var ch=S.chats[a.id]=S.chats[a.id]||{messages:[]};ch.messages=(ch.messages||[]).slice();
+  ch.messages.push({role:'founder',text:text,ts:Date.now()});
+  c.draft='';c.busy=true;c.partial='';c.error='';c.proposals=null;c.confirmClear=false;c.ctl=new AbortController();render();
+  var ctl=c.ctl;
+  try{
+    var r=await SAMPLE(chatTurns(a),{cache:false,signal:ctl.signal,onText:function(u){
+      c.partial=u.text;var el=document.getElementById('chat-stream');
+      if(el){el.textContent=u.text;var lg=document.getElementById('chat-log');if(lg)lg.scrollTop=lg.scrollHeight}
+    }});
+    ch.messages.push({role:'agent',text:String(r.text).trim()+(r.truncated?'\n[reply cut short]':''),ts:Date.now()});
+  }catch(e){
+    var code=e&&e.code;
+    if(e&&e.text&&String(e.text).trim()&&code!=='refused')ch.messages.push({role:'agent',text:String(e.text).trim()+'\n[interrupted]',ts:Date.now()});
+    if(code==='not_granted'||code==='sampling_disabled'||code==='not_declared'){S.sampleBlocked=true;c.error='Claude access was declined or is unavailable, so the agent cannot reply.'}
+    else if(code==='rate_limited')c.error='Too many requests right now. Wait a minute, then send again.';
+    else if(code!=='cancelled')c.error='The agent could not reply. Send again in a moment.';
+  }
+  c.busy=false;c.partial='';c.ctl=null;
+  ch.messages=ch.messages.slice(-40);ch.agentId=a.id;ch.updatedAt=Date.now();persist('chats',a.id,ch);
+  if(S.chat===c)render();
+}
+async function captureChat(){
+  var c=S.chat,a=chatAgent();if(!c||!a||c.busy||c.extracting||!SAMPLE)return;
+  var msgs=((S.chats[a.id]||{}).messages||[]).slice(-16);
+  c.extracting=true;c.error='';render();
+  var tr=msgs.map(function(m){return (m.role==='agent'?'AGENT: ':'FOUNDER: ')+m.text}).join('\n\n');
+  var prompt='Below are an agent\'s records (items are numbered from 1) and a conversation between the founder and the agent. Today is '+today()+'.\n\nRECORDS\n'+recordsText(a)+'\n\nCONVERSATION\n'+tr+'\n\n'
+   +'List what the AGENT clearly committed to in this conversation. Reply with only a JSON array. Each element: {"kind":"todo" or "goal" or "kpi" or "routine" (routine: due is its next-run date) or "memory" (a lasting instruction the FOUNDER gave that the agent accepted; index null, due null, note = the instruction in under 160 characters),"index":<number from the records>,"due":"YYYY-MM-DD" or null,"status":"todo" or "doing" or "done" or null (todos only; only if the agent said it is in that state),"note":"under 140 characters: the reason or dependency, in the agent\'s words"}. Do not include anything the agent did not commit to. Use [] if there is nothing.';
+  try{
+    var arr=await SAMPLE.json(prompt,{cache:false});
+    var ok=[];
+    (Array.isArray(arr)?arr:[]).forEach(function(p){
+      var kind=p&&p.kind;
+      if(kind==='memory'){var mt=String(p.note||'').trim().slice(0,200);if(mt)ok.push({kind:'memory',index:-1,due:'',status:'',note:mt,state:'open'});return}
+      var idx=Number(p&&p.index)-1,list=kind==='todo'?a.todos:kind==='goal'?a.goals:kind==='kpi'?a.kpis:kind==='routine'?a.routines:null;
+      if(!list||!(idx>=0&&idx<list.length))return;
+      var due=/^\d{4}-\d{2}-\d{2}$/.test(String(p.due||''))?p.due:'';
+      var st=(kind==='todo'&&['todo','doing','done'].indexOf(p.status)>=0)?p.status:'';
+      var note=String(p.note||'').slice(0,160);
+      if(!due&&!st&&!note)return;
+      ok.push({kind:kind,index:idx,due:due,status:st,note:note,state:'open'});
+    });
+    c.proposals=ok;
+  }catch(e){
+    c.error=(e&&e.code==='rate_limited')?'Too many requests right now. Try again in a minute.':'Could not read dates from the chat. Try again.';
+  }
+  c.extracting=false;if(S.chat===c)render();
+}
+function applyProp(i,quiet){
+  var c=S.chat,a=chatAgent(),p=c&&c.proposals&&c.proposals[i];
+  if(!a||!p||p.state!=='open')return;
+  p.state='applied';
+  if(p.kind==='memory'){(a.memory=a.memory||[]).push({text:p.note,at:today(),src:'chat'});if(!quiet){persist('agents',a.id,a);render()}return}
+  var it=(p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis)[p.index];
+  if(it&&p.kind==='routine'){if(p.due)it.next=p.due;if(p.note)it.note=p.note}
+  else if(it){if(p.due)it.due=p.due;if(p.status&&p.kind==='todo')it.status=p.status;if(p.note)it.note=p.note}
+  if(!quiet){persist('agents',a.id,a);render()}
+}
+
+/* ---------- CSV export ---------- */
+function csvCell(v){v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function exportCSV(){
+  if(!DL)return;
+  var list=agentsOf(S.scope),T=buildTree(list),proj,rows=[['Project','Agent','Level','Kind','Item','Status','Due','Target','Current','Detail','Reports to']];
+  function add(a){
+    proj=fullName(a.projectId);
+    rows.push([proj,a.name,a.level||'','Agent',a.role||'',statusLabel(a.status),nextDue(a),'','',a.purpose||'',a.reportsTo||'']);
+    (a.goals||[]).forEach(function(g){rows.push([proj,a.name,a.level||'','Goal',g.text,g.done?'Met':'Open',g.due||'','','',[g.horizon,g.note].filter(Boolean).join(' · '),''])});
+    (a.kras||[]).forEach(function(k){rows.push([proj,a.name,a.level||'','KRA',k.area,k.weight+'%','','','',k.outcome,''])});
+    (a.kpis||[]).forEach(function(k){rows.push([proj,a.name,a.level||'','KPI',k.name,'',k.due||'',k.target==null?'':k.target,k.current==null?'':k.current,[k.unit,k.cadence,k.note].filter(Boolean).join(' · '),''])});
+    (a.todos||[]).forEach(function(t){rows.push([proj,a.name,a.level||'','Todo',t.text,{todo:'To do',doing:'In progress',done:'Done'}[t.status||'todo'],t.due||'','','',t.note||'',''])});
+    (a.routines||[]).forEach(function(r){rows.push([proj,a.name,a.level||'','Routine',r.name,r.state||'planned',r.next||'','','',[r.cadence,r.note].filter(Boolean).join(' · '),''])});
+    (a.memory||[]).forEach(function(m){rows.push([proj,a.name,a.level||'','Memory',m.text,'',m.at||'','','','',''])});
+    (a.docs||[]).forEach(function(x){rows.push([proj,a.name,a.level||'','Doc',x.title,'','','','',[x.path,x.note].filter(Boolean).join(' · '),''])});
+    (a.skills||[]).forEach(function(x){rows.push([proj,a.name,a.level||'','Skill',x.name,'','','','',x.note||'',''])});
+    (T.kids[a.id]||[]).forEach(add);
+  }
+  T.roots.forEach(add);
+  var csv='﻿'+rows.map(function(r){return r.map(csvCell).join(',')}).join('\r\n');
+  DL.save({filename:'agent-desk-'+(S.scope==='all'?'all-projects':shortName(S.scope))+'.csv',data:csv}).then(function(){toast('Saved the sheet as CSV')},function(e){if(!e||e.code!=='declined')toast('Could not save the file here.')});
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-act]');if(!el)return;
+  var act=el.dataset.act,id=el.dataset.id,i=Number(el.dataset.i);
+  if(act==='scope'){S.scope=id;render()}
+  else if(act==='tab'){S.tab=el.dataset.tab;render()}
+  else if(act==='toggle'){S.open[id]=!S.open[id];render()}
+  else if(act==='expand-all'){agentsOf(S.scope).forEach(function(a){S.open[a.id]=true});render()}
+  else if(act==='collapse-all'){S.open={};render()}
+  else if(act==='csv')exportCSV();
+  else if(act==='open-agent'){S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=id;S.confirmDelete=null;render()}
+  else if(act==='close-panel'){S.openAgent=null;S.confirmDelete=null;render()}
+  else if(act==='chat-open')openChat(id);
+  else if(act==='chat-close')closeChat();
+  else if(act==='chat-hold')sendChat(HOLD);
+  else if(act==='chat-timelines')sendChat(TIMELINES);
+  else if(act==='chat-routines')sendChat(ROUTINES);
+  else if(act==='chat-complain'){if(S.chat){S.chat.draft='Complaint: ';render();var ci=document.getElementById('chat-input');if(ci){ci.focus();ci.setSelectionRange(ci.value.length,ci.value.length)}}}
+  else if(act==='chat-send'){if(S.chat)sendChat(S.chat.draft)}
+  else if(act==='chat-stop'){if(S.chat&&S.chat.ctl)S.chat.ctl.abort()}
+  else if(act==='chat-capture')captureChat();
+  else if(act==='chat-clear'){
+    var a2=chatAgent();if(!a2||!S.chat)return;
+    if(!S.chat.confirmClear){S.chat.confirmClear=true;render();return}
+    S.chats[a2.id]={messages:[],agentId:a2.id,updatedAt:Date.now()};persist('chats',a2.id,S.chats[a2.id]);S.chat.confirmClear=false;S.chat.proposals=null;render();
+  }
+  else if(act==='prop-apply')applyProp(i);
+  else if(act==='prop-skip'){if(S.chat&&S.chat.proposals&&S.chat.proposals[i]){S.chat.proposals[i].state='skipped';render()}}
+  else if(act==='prop-all'){var ca=chatAgent();if(ca&&S.chat&&S.chat.proposals){S.chat.proposals.forEach(function(p,k){applyProp(k,true)});persist('agents',ca.id,ca);render();toast('Dates applied to the sheet')}}
+  else if(act==='wizard-open')openWizard(el.dataset.project);
+  else if(act==='wizard-close'){if(S.wizard&&S.wizard.ctl)S.wizard.ctl.abort();S.wizard=null;render()}
+  else if(act==='wiz-template')wizTemplate();
+  else if(act==='wiz-generate')wizGenerate();
+  else if(act==='wiz-stop'){if(S.wizard&&S.wizard.ctl)S.wizard.ctl.abort()}
+  else if(act==='wiz-back'){S.wizard.step=1;S.wizard.error='';render()}
+  else if(act==='wiz-create')createAgent();
+  else if(act==='sync')sync();
+  else if(act==='save-brief'){var t=document.getElementById('brief-edit');if(t)saveBrief(id,t.value)}
+  else if(act==='todo-cycle')mutate(id,function(a){var t=a.todos[i],o=['todo','doing','done'];t.status=o[(o.indexOf(t.status||'todo')+1)%3]});
+  else if(act==='todo-add'){var ti=document.getElementById('todo-new');if(ti&&ti.value.trim()){var v=ti.value.trim();ti.value='';mutate(id,function(a){(a.todos=a.todos||[]).push({text:v,status:'todo',due:''})})}}
+  else if(act==='goal-add'){var gi=document.getElementById('goal-new');if(gi&&gi.value.trim()){var gv=gi.value.trim();gi.value='';mutate(id,function(a){(a.goals=a.goals||[]).push({text:gv,horizon:'',done:false,due:''})})}}
+  else if(act==='lib-del'){var lk=el.dataset.key;mutate(id,function(a){if(a[lk])a[lk].splice(i,1)})}
+  else if(act==='lib-add'){
+    var lk2=el.dataset.key,sp=LSPEC[lk2],obj={},okk=true;
+    sp.f.forEach(function(f,n){var inp=document.getElementById('lib-'+lk2+'-'+f[0]);var v=inp?inp.value.trim():'';if(n===0&&!v)okk=false;obj[f[0]]=v});
+    if(okk){
+      if(lk2==='memory'){obj.at=today();obj.src='you'}
+      if(lk2==='routines'){obj.state='planned';obj.next='';obj.note=''}
+      mutate(id,function(a){(a[lk2]=a[lk2]||[]).push(obj)});
+    }
+  }
+  else if(act==='delete-ask'){S.confirmDelete=id;render()}
+  else if(act==='delete-cancel'){S.confirmDelete=null;render()}
+  else if(act==='delete-confirm'){S.agents=S.agents.filter(function(a){return a.id!==id});removeDoc('agents',id);S.openAgent=null;S.confirmDelete=null;render();toast('Agent deleted')}
+  else if(act==='copy-jd'){
+    var a=S.agents.filter(function(x){return x.id===id})[0];if(!a)return;
+    (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(jdText(a)):Promise.reject()).then(function(){toast('Job description copied')},function(){toast('Copy is blocked here. Select the text in the profile instead.')});
+  }
+});
+document.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.dataset.q!==undefined){S.q=t.value;render()}
+  else if(t.dataset.chat!==undefined&&S.chat){S.chat.draft=t.value}
+  else if(t.dataset.wf&&S.wizard&&S.wizard.fields){S.wizard.fields[t.dataset.wf]=t.value}
+  else if(t.dataset.w1&&S.wizard){
+    var k=t.dataset.w1;S.wizard[k]=t.value;
+    if(k==='projectId'){S.wizard.brief=(S.projects[t.value]&&S.projects[t.value].brief)||'';render()}
+  }
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.dataset.flt!==undefined){S.flt=t.value;render()}
+  else if(t.dataset.status){var sv=t.value;mutate(t.dataset.status,function(a){a.status=sv})}
+  else if(t.dataset.set){
+    var kind=t.dataset.set,f=t.dataset.f,i=Number(t.dataset.i),v=t.type==='checkbox'?t.checked:t.value;
+    if(f==='current'||f==='target'){v=v===''?null:Number(v);if(v!==null&&!isFinite(v))v=null}
+    mutate(t.dataset.id,function(a){
+      var arr=kind==='goal'?a.goals:kind==='todo'?a.todos:kind==='routine'?a.routines:a.kpis;
+      if(arr&&arr[i])arr[i][f]=v;
+    });
+  }
+});
+document.addEventListener('keydown',function(e){
+  var t=e.target;
+  if(e.key==='Escape'){
+    if(S.wizard){if(S.wizard.ctl)S.wizard.ctl.abort();S.wizard=null;render()}
+    else if(S.chat)closeChat();
+    else if(S.openAgent){S.openAgent=null;render()}
+  }
+  else if(e.key==='Enter'&&t.id&&t.id.indexOf('lib-')===0){var lb=document.querySelector('[data-act="lib-add"][data-key="'+t.id.split('-')[1]+'"]');if(lb)lb.click()}
+  else if(e.key==='Enter'&&t.id==='todo-new'){var b=document.querySelector('[data-act="todo-add"]');if(b)b.click()}
+  else if(e.key==='Enter'&&t.id==='goal-new'){var g=document.querySelector('[data-act="goal-add"]');if(g)g.click()}
+  else if(e.key==='Enter'&&t.dataset&&t.dataset.newtodo){
+    var v=t.value.trim();if(!v)return;e.preventDefault();
+    mutate(t.dataset.newtodo,function(a){(a.todos=a.todos||[]).push({text:v,status:'todo',due:''})});
+  }
+  else if(e.key==='Enter'&&!e.shiftKey&&t.id==='chat-input'){e.preventDefault();if(S.chat)sendChat(S.chat.draft)}
+});
+
+/* ---------- boot ---------- */
+render();
+(async function(){
+  var C=window.claude;
+  if(!C||!C.use){S.loaded=true;S.banner='Saving is not available in this view. Changes will not be kept.';render();return}
+  try{DB=await C.use('db')}catch(e){}
+  try{SAMPLE=await C.use('sample')}catch(e){}
+  try{MCP=await C.use('mcp')}catch(e){}
+  try{DL=await C.use('downloads')}catch(e){}
+  if(!DB){S.loaded=true;S.banner='Saving is not available in this view. Changes will not be kept.';render();return}
+  DB.collection('agents').onSnapshot(function(snap){
+    var next=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)});
+    var sig=JSON.stringify(next);
+    S.loaded=true;
+    if(sig===lastSig&&lastSig!=='')return;
+    lastSig=sig;S.agents=next;render();
+  },function(){S.loaded=true;S.banner='Could not load saved agents. Reload the page to try again.';render()});
+  DB.collection('projects').onSnapshot(function(snap){
+    var m={};snap.docs.forEach(function(d){m[d.id]=clone(d.data())});S.projects=m;
+    if(!(document.activeElement&&document.activeElement.id==='brief-edit'))render();
+  },function(){});
+  DB.collection('chats').onSnapshot(function(snap){
+    var m={};snap.docs.forEach(function(d){m[d.id]=clone(d.data())});
+    if(S.chat&&(S.chat.busy||S.chat.extracting))return;
+    S.chats=m;if(S.chat)render();
+  },function(){});
+  DB.doc('meta/repos').onSnapshot(function(d){
+    if(d.exists){var v=d.data();if(v&&Array.isArray(v.items)&&v.items.length){S.repos=clone(v.items);S.syncedAt=v.syncedAt||null;render()}}
+  },function(){});
+  render();
+})();
+})();
+</script>

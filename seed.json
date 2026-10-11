@@ -1,0 +1,4139 @@
+{
+ "agents": [
+  {
+   "id": "fv_a11y-localisation",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "UX Junior: Accessibility and Localisation",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "UX Lead",
+   "status": "active",
+   "purpose": "Check accessibility and keep English/Hindi strings complete and consistent.",
+   "responsibilities": [
+    "Review strings files; flag missing or inconsistent translations.",
+    "Check contrast and tap targets."
+   ],
+   "may": [
+    "Edit string files via PR"
+   ],
+   "mustNot": [
+    "Publish legal wording without Legal review"
+   ],
+   "handsOff": "UX Lead",
+   "reads": "CLAUDE.md, design docs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Check accessibility and keep English/Hindi strings complete and consistent.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/a11y-localisation.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "design docs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_backend-lead",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Backend and Data Lead",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "CTO",
+   "status": "active",
+   "purpose": "Own the API, database schema, intake parsers and the consent ledger; manage backend juniors.",
+   "responsibilities": [
+    "Review backend PRs; keep the schema and migrations safe and reversible.",
+    "Keep the consent-ledger schema aligned with `packages/types`.",
+    "Assign work to `dev-api`, `dev-intake`, `dev-admin` through the Orchestrator."
+   ],
+   "may": [
+    "Approve or request changes on backend PRs"
+   ],
+   "mustNot": [
+    "Run migrations on real data",
+    "Merge to `main`"
+   ],
+   "handsOff": "Developers, Head of Quality, Head of Security",
+   "reads": "CLAUDE.md, data rails, PRD, ADRs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own the API, database schema, intake parsers and the consent ledger; manage backend juniors.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#7 E0: Data model and consent ledger schema [p1, blocked]",
+     "status": "todo",
+     "issue": 7
+    },
+    {
+     "text": "#23 E4: Build vault API for encrypted items and blob storage [p0]",
+     "status": "todo",
+     "issue": 23
+    },
+    {
+     "text": "#72 Demo: scaffold apps/admin with the demo guards and banner [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 72
+    },
+    {
+     "text": "#73 Demo: build the admin accounts table, signups chart and funnel [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 73
+    },
+    {
+     "text": "#74 Demo: build admin tickets, content, audit log and the two-person lock [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 74
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/backend-lead.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_backlog-groomer",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "PM Junior: Backlog Groomer",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Product",
+   "status": "active",
+   "purpose": "Keep the board clean: duplicates, stale items, missing labels and milestones.",
+   "responsibilities": [
+    "Flag tickets that fail the definition of ready."
+   ],
+   "may": [
+    "Label and comment on issues"
+   ],
+   "mustNot": [
+    "Close non-duplicate issues",
+    "Change priorities"
+   ],
+   "handsOff": "Head of Product",
+   "reads": "CLAUDE.md, the board",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Keep the board clean: duplicates, stale items, missing labels and milestones.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/backlog-groomer.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the board",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_chief-of-staff",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Chief of Staff (Orchestrator)",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Founder",
+   "status": "active",
+   "purpose": "Run the daily build loop: pick the next ready ticket, assign it, stop stuck work, keep the status current, and enforce time and spend caps.",
+   "responsibilities": [
+    "Read the board each run and pick the highest-priority `status:ready` issue that is not blocked.",
+    "Assign it by setting the right `agent:*` label; never assign more parallel developers than the cap in `docs/org-structure.md`.",
+    "Park stuck tickets (`status:needs-human`) after two failed attempts or the time limit.",
+    "Update `docs/status/STATUS.md` and the pinned Status issue at the end of every run.",
+    "Every agent run appends an entry to `docs/logs.md` before handing off. Never put content, names, numbers, tokens or secrets in the log. Synthetic data only. Check that each role agent you hand work to has done this.",
+    "Track daily token/spend against the cap the founder set; stop the loop when it is reached.",
+    "Post one report twice a day (about 09:00 and 19:00 IST) on the pinned \"Founder reports\" issue, in the format in `docs/ops/autopilot.md` \u00a72.",
+    "Keep at most 3 PRs open; at 3, open no new ones and report.",
+    "Label only urgent items `urgent` (CLAUDE.md); make sure leads log their other decisions in `docs/decisions-log.md`."
+   ],
+   "may": [
+    "Label, assign, comment on and close duplicate issues",
+    "Pause the loop",
+    "Ping the founder"
+   ],
+   "mustNot": [
+    "Change scope or priorities set by Head of Product",
+    "Write product code",
+    "Approve or merge any PR"
+   ],
+   "handsOff": "Head of Product, CTO, Heads of Quality/Security, Founder",
+   "reads": "CLAUDE.md, docs/org-structure.md, docs/status/STATUS.md, the issue board",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Run the daily build loop: pick the next ready ticket, assign it, stop stuck work, keep the status current, and enforce time and spend caps.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/chief-of-staff.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "docs/org-structure.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "docs/status/STATUS.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue board",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": [
+    {
+     "name": "Scheduled build loop",
+     "cadence": "Twice daily, about 08:30 and 18:30 IST",
+     "state": "planned",
+     "next": "",
+     "note": "Prompt in docs/ops/routine-prompt.md; scheduling is a founder step in autopilot.md, not verified here"
+    },
+    {
+     "name": "Founder report on pinned issue #50",
+     "cadence": "Morning (before 14:00 IST) and evening",
+     "state": "planned",
+     "next": "",
+     "note": "Format in docs/ops/autopilot.md section 2"
+    }
+   ]
+  },
+  {
+   "id": "fv_code-review-agent",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Security Junior: Code Review",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Security",
+   "status": "active",
+   "purpose": "Read pull requests for key handling, permission checks, injection, logging of content and unsafe dependencies.",
+   "responsibilities": [
+    "Comment with file and line; classify severity."
+   ],
+   "may": [
+    "Comment on and request changes to PRs"
+   ],
+   "mustNot": [
+    "Edit code",
+    "Approve its own findings as fixed"
+   ],
+   "handsOff": "Head of Security",
+   "reads": "CLAUDE.md, threat model",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash"
+   ],
+   "goals": [
+    {
+     "text": "Read pull requests for key handling, permission checks, injection, logging of content and unsafe dependencies.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/code-review-agent.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_cto",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "CTO (Head of Engineering)",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Founder",
+   "status": "active",
+   "purpose": "Own architecture, stack, data model and technical decisions; give final technical sign-off on risky changes.",
+   "responsibilities": [
+    "Write and maintain decision records in `docs/adr/`.",
+    "Own `CLAUDE.md` technical rules and the crypto/data-model design (with the Head of Security).",
+    "Review `risk:high` pull requests for design soundness before the founder merges.",
+    "Merge docs-only or tests-only PRs only when every condition in `docs/ops/autopilot.md` \u00a73 holds, including a fresh protect-main check. Never use `--admin` or a bypass.",
+    "Write the steps for accounts and secrets only the founder can create, and label them `urgent`.",
+    "Manage the Backend, Mobile/Web, DevOps and Data and Database leads and their juniors; reassign or park stuck work.",
+    "Keep one codebase and one set of shared packages; reject duplicated logic."
+   ],
+   "may": [
+    "Approve or request changes on PRs",
+    "Open ADR and spike issues",
+    "Edit engineering role files via PR"
+   ],
+   "mustNot": [
+    "Merge to `main` outside the CTO merge rule (CLAUDE.md Workflow 6), or merge anything founder-only",
+    "Change the crypto package alone (needs Head of Security)",
+    "Touch production or secrets"
+   ],
+   "handsOff": "Engineering leads, Head of Security, Founder",
+   "reads": "CLAUDE.md, PRD, execution plan, data rails, admin spec, threat model, ADRs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own architecture, stack, data model and technical decisions; give final technical sign-off on risky changes.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#30 E1: Spike to choose React Native libsodium, Keystore and device sign-in key libraries [p0, risk:high]",
+     "status": "doing",
+     "issue": 30
+    },
+    {
+     "text": "#57 Demo: fail CI when the tracer appears in a non-demo build [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 57
+    },
+    {
+     "text": "#76 Demo: add Vercel config for web and admin with per-PR previews [p1, blocked]",
+     "status": "todo",
+     "issue": 76
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/cto.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "execution plan",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "admin spec",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_data-governance",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Data Manager (junior)",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Data and Database (dotted line to Head of Security)",
+   "status": "active",
+   "purpose": "Know what every stored field is for, how long it is kept and who can read it, so the product keeps its privacy promises.",
+   "responsibilities": [
+    "Keep `docs/data/inventory.md`. For every stored field it records the purpose, whether it is encrypted, the retention period and who can read it.",
+    "Keep the retention rules.",
+    "Check that the consent ledger matches the consent texts.",
+    "Track access, correction and deletion requests as metadata only, never their content.",
+    "Own the synthetic data sets used in tests and demos."
+   ],
+   "may": [
+    "Edit data docs and synthetic data files via PR",
+    "Open data and privacy issues",
+    "Raise concerns directly with the Head of Security"
+   ],
+   "mustNot": [
+    "Run commands (no Bash) or connect to any database",
+    "Do analytics or profiling of users",
+    "Write consent text (the legal assistant drafts it; the human advocate decides)"
+   ],
+   "handsOff": "Head of Data and Database, Head of Security",
+   "reads": "CLAUDE.md, `docs/data/inventory.md`, consent texts, ADRs, the issue",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Know what every stored field is for, how long it is kept and who can read it, so the product keeps its privacy promises.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/data-governance.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "`docs/data/inventory.md`",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "consent texts",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_db-reliability",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "DB Junior: Reliability",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Data and Database",
+   "status": "active",
+   "purpose": "Keep the database safe to change and safe to restore.",
+   "responsibilities": [
+    "Write and check migrations. Every migration is reversible and comes with a test that applies and rolls it back.",
+    "Write the backup and restore plan, and the restore test.",
+    "Keep the index and slow-query checklist.",
+    "Set up the local database and document staging setup for the founder to run."
+   ],
+   "may": [
+    "Write migration and test code on `feat/*` or `chore/*` branches",
+    "Run migrations on a local or dev database",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Connect to staging or production, or run a restore or migration there (`status:needs-human`)",
+    "Write irreversible migrations"
+   ],
+   "handsOff": "Head of Data and Database",
+   "reads": "CLAUDE.md, the issue, the migration checklist, `docs/data/inventory.md`",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Keep the database safe to change and safe to restore.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/db-reliability.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the migration checklist",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "`docs/data/inventory.md`",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dependency-scanner",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Security Junior: Dependency and Secrets Scanner",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Security",
+   "status": "active",
+   "purpose": "Triage dependency alerts and secret-scan hits; propose safe upgrades.",
+   "responsibilities": [
+    "Open a security issue per real finding."
+   ],
+   "may": [
+    "Open issues",
+    "Propose upgrade PRs"
+   ],
+   "mustNot": [
+    "Rotate or handle real secrets (tell the founder)"
+   ],
+   "handsOff": "Head of Security",
+   "reads": "CLAUDE.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash"
+   ],
+   "goals": [
+    {
+     "text": "Triage dependency alerts and secret-scan hits; propose safe upgrades.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dependency-scanner.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dev-admin",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Developer: Admin Console",
+   "role": "Junior \u00b7 active from Alpha (slice), Beta (full)",
+   "reportsTo": "Backend and Data Lead",
+   "status": "active",
+   "purpose": "Build the metadata-only admin console with roles and an audit trail.",
+   "responsibilities": [
+    "Never expose content fields.",
+    "Log every admin action append-only."
+   ],
+   "may": [
+    "Write code on `feat/*` branches",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Add impersonation or content views",
+    "Weaken the audit log"
+   ],
+   "handsOff": "Head of Security (always), Head of Quality",
+   "reads": "CLAUDE.md, the issue, admin spec",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Build the metadata-only admin console with roles and an audit trail.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dev-admin.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "admin spec",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dev-api",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Developer: API",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Backend and Data Lead",
+   "status": "active",
+   "purpose": "Build API and schema tickets with reversible migrations and tests.",
+   "responsibilities": [
+    "Implement acceptance checks.",
+    "Write migrations that can be rolled back."
+   ],
+   "may": [
+    "Write code on `feat/*` branches",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Run migrations on real data",
+    "Store keys or content in plaintext"
+   ],
+   "handsOff": "Head of Quality",
+   "reads": "CLAUDE.md, the issue, data rails",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Build API and schema tickets with reversible migrations and tests.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dev-api.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dev-intake",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Developer: Intake and Parsers",
+   "role": "Junior \u00b7 active from Alpha (share-to-app), Beta (statements, email)",
+   "reportsTo": "Backend and Data Lead",
+   "status": "active",
+   "purpose": "Build on-device reading of statements, messages and shared files, with a review step before anything is saved.",
+   "responsibilities": [
+    "Parse locally; keep raw inputs off the server by default.",
+    "Test with synthetic statements only."
+   ],
+   "may": [
+    "Write code on `feat/*` branches",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Use real statements or messages as fixtures",
+    "Send raw content to third-party services"
+   ],
+   "handsOff": "Head of Quality, Head of Security",
+   "reads": "CLAUDE.md, the issue, data rails",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Build on-device reading of statements, messages and shared files, with a review step before anything is saved.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dev-intake.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dev-mobile",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Developer: Mobile",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Mobile and Web Lead",
+   "status": "active",
+   "purpose": "Build one mobile ticket at a time in React Native with tests.",
+   "responsibilities": [
+    "Implement the issue's acceptance checks.",
+    "Reuse `packages/*`; add tests; attach screenshots."
+   ],
+   "may": [
+    "Write code on `feat/*` branches",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Touch `packages/crypto` without CTO and Security approval",
+    "Add logging of user content"
+   ],
+   "handsOff": "Head of Quality",
+   "reads": "CLAUDE.md, the issue, mockups",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Build one mobile ticket at a time in React Native with tests.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dev-mobile.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_dev-web",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Developer: Web",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Mobile and Web Lead",
+   "status": "active",
+   "purpose": "Build one web/mobile-site ticket at a time in Next.js with tests.",
+   "responsibilities": [
+    "Implement acceptance checks.",
+    "Keep it installable as a PWA; attach screenshots."
+   ],
+   "may": [
+    "Write code on `feat/*` branches",
+    "Open PRs"
+   ],
+   "mustNot": [
+    "Touch `packages/crypto` without approval",
+    "Add logging of user content"
+   ],
+   "handsOff": "Head of Quality",
+   "reads": "CLAUDE.md, the issue, mockups",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Build one web/mobile-site ticket at a time in Next.js with tests.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/dev-web.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_devops-lead",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "DevOps and Release Lead",
+   "role": "Head \u00b7 active from Alpha (light), Beta (full)",
+   "reportsTo": "CTO",
+   "status": "active",
+   "purpose": "Own CI, environments, backups, monitoring and release candidates for development and staging.",
+   "responsibilities": [
+    "Maintain GitHub Actions: tests, lint, dependency and secret scans.",
+    "Define dev/staging environments and the checklist for production (the founder deploys).",
+    "Prepare release notes and store-build scripts; never submit builds.",
+    "Set up backups and restore tests for staging data (synthetic only)."
+   ],
+   "may": [
+    "Edit `.github/workflows` and `infra/` via PR",
+    "Deploy to staging when the founder has configured it"
+   ],
+   "mustNot": [
+    "Deploy to production",
+    "Hold or change production secrets",
+    "Submit to app stores"
+   ],
+   "handsOff": "CTO, Founder",
+   "reads": "CLAUDE.md, infra docs, ADRs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own CI, environments, backups, monitoring and release candidates for development and staging.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#9 E0: Staging environment plan (Vercel and Neon, India region check) [p1, needs founder]",
+     "status": "todo",
+     "issue": 9
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/devops-lead.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "infra docs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_exploratory-tester",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "QA Junior: Exploratory and Regression",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Quality",
+   "status": "active",
+   "purpose": "Try to break features: odd inputs, offline, interrupted uploads, second device, wrong family role.",
+   "responsibilities": [
+    "Write reproducible bug reports with steps and expected/actual."
+   ],
+   "may": [
+    "Open bugs"
+   ],
+   "mustNot": [
+    "Fix code"
+   ],
+   "handsOff": "Head of Quality",
+   "reads": "CLAUDE.md, the issue, mockups",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash"
+   ],
+   "goals": [
+    {
+     "text": "Try to break features: odd inputs, offline, interrupted uploads, second device, wrong family role.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/exploratory-tester.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_feature-scout",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Intel Junior: Feature Scout",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "Product Intelligence Lead",
+   "status": "draft",
+   "purpose": "Weekly scan of market, competitors and user feedback for features worth adding.",
+   "responsibilities": [
+    "Write short proposals with cited evidence; maximum a few per week."
+   ],
+   "may": [
+    "Open `type:research` issues"
+   ],
+   "mustNot": [
+    "Change scope",
+    "Cite without a link"
+   ],
+   "handsOff": "Product Intelligence Lead",
+   "reads": "CLAUDE.md, feature registry",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Weekly scan of market, competitors and user feedback for features worth adding.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/feature-scout.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "feature registry",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": [
+    {
+     "name": "Scan market, competitors and user feedback",
+     "cadence": "Weekly",
+     "state": "planned",
+     "next": "",
+     "note": "From role file"
+    }
+   ]
+  },
+  {
+   "id": "fv_feature-steward",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Intel Junior: Feature Steward",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Product Intelligence Lead",
+   "status": "active",
+   "purpose": "Keep each feature's purpose, behaviour, limits, loopholes and workarounds recorded in the registry; review features after release.",
+   "responsibilities": [
+    "Update `docs/features/REGISTRY.md` via PR."
+   ],
+   "may": [
+    "Edit the registry via PR"
+   ],
+   "mustNot": [
+    "Change scope"
+   ],
+   "handsOff": "Product Intelligence Lead",
+   "reads": "CLAUDE.md, PRD, feature registry",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Keep each feature's purpose, behaviour, limits, loopholes and workarounds recorded in the registry; review features after release.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/feature-steward.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "feature registry",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_head-of-content-compliance",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Head of Content and Compliance",
+   "role": "Head \u00b7 active from Beta",
+   "reportsTo": "Founder",
+   "status": "draft",
+   "purpose": "Own the insurance library, templates, help text, translations and the compliance workflow; route legal wording to the human advocate.",
+   "responsibilities": [
+    "Review library entries for source, date and wording ('possible cover, verify with the lender').",
+    "Route consent texts and letter templates to the human advocate before publishing.",
+    "Track data-access, correction and erasure requests and the grievance queue (metadata only)."
+   ],
+   "may": [
+    "Edit content and compliance docs via PR"
+   ],
+   "mustNot": [
+    "Publish unreviewed legal text",
+    "Access user content"
+   ],
+   "handsOff": "Legal assistant, Translator, Founder, human advocate",
+   "reads": "CLAUDE.md, catalogue, data rails, consent texts",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Own the insurance library, templates, help text, translations and the compliance workflow; route legal wording to the human advocate.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/head-of-content-compliance.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "catalogue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "consent texts",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_head-of-data-db",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Head of Data and Database",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "CTO",
+   "status": "active",
+   "purpose": "Own the schema, migrations, backups, restore tests, performance and database access rules, so that family data is stored correctly and can always be restored.",
+   "responsibilities": [
+    "Own the schema and the data model, with the final say on data-model changes below the CTO.",
+    "Own migrations, the backup plan, restore tests, performance and database access rules.",
+    "Review every ticket and pull request that touches the database.",
+    "Send anything that touches consent, keys or sharing to the Head of Security as well.",
+    "Manage db-reliability and data-governance; assign their tickets and review their work."
+   ],
+   "may": [
+    "Approve or request changes on database pull requests",
+    "Open schema, migration and data issues",
+    "Edit data role files via PR"
+   ],
+   "mustNot": [
+    "Merge to `main`",
+    "Run anything against staging or production",
+    "Add a column that holds keys or readable content"
+   ],
+   "handsOff": "CTO, Head of Security, Head of Quality, Founder",
+   "reads": "CLAUDE.md, ADRs (especially 0002, 0003, 0004), threat model, `docs/data/inventory.md`, the issue",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own the schema, migrations, backups, restore tests, performance and database access rules, so that family data is stored correctly and can always be restored.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#33 E0: Backup and restore plan for staging, with India-region check [p1, needs founder]",
+     "status": "todo",
+     "issue": 33
+    },
+    {
+     "text": "#35 E0: Review schema and consent ledger design [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 35
+    },
+    {
+     "text": "#53 Demo: add the money and insurance seed [p1, blocked]",
+     "status": "todo",
+     "issue": 53
+    },
+    {
+     "text": "#54 Demo: add the admin metadata seed [p1, blocked]",
+     "status": "todo",
+     "issue": 54
+    },
+    {
+     "text": "#55 Demo: add the consent texts, help articles and letter template seed [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 55
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/head-of-data-db.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs (especially 0002",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "0003",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "0004)",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "`docs/data/inventory.md`",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_head-of-product",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Head of Product (CPO)",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Founder",
+   "status": "active",
+   "purpose": "Own what gets built and in what order: backlog, ticket quality, acceptance checks and roadmap against the PRD.",
+   "responsibilities": [
+    "Turn PRD sections into small, sized issues with acceptance checks (definition of ready).",
+    "Order the backlog by milestone (Alpha, Beta, v1.0, v2) and priority.",
+    "Review proposals from Product Intelligence and decide which become tickets.",
+    "Keep the PRD and the feature registry consistent with what is built.",
+    "Manage the PM juniors, the UX Lead and the Product Intelligence lead."
+   ],
+   "may": [
+    "Create, edit, close and reorder issues",
+    "Propose PRD edits via PR"
+   ],
+   "mustNot": [
+    "Write code",
+    "Approve its own tickets' pull requests",
+    "Change scope across milestones without the founder"
+   ],
+   "handsOff": "UX Lead, Developers (via Orchestrator), Head of Quality",
+   "reads": "CLAUDE.md, PRD, catalogue, mockups, execution plan, feature registry",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own what gets built and in what order: backlog, ticket quality, acceptance checks and roadmap against the PRD.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/head-of-product.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "catalogue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "execution plan",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "feature registry",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_head-of-quality",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Head of Quality (QA)",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Founder (independent of CTO)",
+   "status": "active",
+   "purpose": "Be the independent check: no change is done until it passes the tests and the acceptance checks.",
+   "responsibilities": [
+    "Write test plans from acceptance checks before development starts.",
+    "Fail a PR whose tests are missing, weak or red; open bug issues with exact steps.",
+    "Keep the regression suite green and growing; track flaky tests and fix or quarantine them.",
+    "Block PRs that change behaviour without updating the docs.",
+    "Report weekly: pass rate, escaped bugs, rework rate per developer agent."
+   ],
+   "may": [
+    "Block a PR",
+    "Open bugs",
+    "Write test code and test plans"
+   ],
+   "mustNot": [
+    "Fix the product code it is testing",
+    "Be overruled by the CTO (disputes go to the founder)"
+   ],
+   "handsOff": "Developers, Head of Security, Founder",
+   "reads": "CLAUDE.md, acceptance checks on issues, PRD, test plans",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Be the independent check: no change is done until it passes the tests and the acceptance checks.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#28 E0: Add log-hygiene test across sign-in, setup, vault and sharing flows [p0, risk:high]",
+     "status": "todo",
+     "issue": 28
+    },
+    {
+     "text": "#29 E6: Add sharing, revocation and recovery test suite with synthetic families [p1, risk:high]",
+     "status": "todo",
+     "issue": 29
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/head-of-quality.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "acceptance checks on issues",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "test plans",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": [
+    {
+     "name": "Quality report: pass rate, escaped bugs, rework rate",
+     "cadence": "Weekly",
+     "state": "planned",
+     "next": "",
+     "note": "From role file"
+    }
+   ]
+  },
+  {
+   "id": "fv_head-of-security",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Head of Security",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Founder (independent of CTO)",
+   "status": "active",
+   "purpose": "Protect user trust: threat model, key handling, permissions, log hygiene and the admin console.",
+   "responsibilities": [
+    "Own `docs/security/threat-model.md` and the crypto design with the CTO.",
+    "Review every `risk:high` PR and any change touching keys, sharing, recovery, logs or admin.",
+    "Run dependency and secret scans; triage alerts.",
+    "Maintain the abuse-case list with the red-team agent.",
+    "Prepare the brief for the external security reviewer."
+   ],
+   "may": [
+    "Block a PR",
+    "Open security issues",
+    "Edit security docs"
+   ],
+   "mustNot": [
+    "Approve its own fixes",
+    "Hold, request or store real keys or secrets",
+    "Be overruled by the CTO (disputes go to the founder)"
+   ],
+   "handsOff": "CTO, Head of Quality, Founder",
+   "reads": "CLAUDE.md, threat model, ADRs, admin spec, data rails",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash"
+   ],
+   "goals": [
+    {
+     "text": "Protect user trust: threat model, key handling, permissions, log hygiene and the admin console.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/head-of-security.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "ADRs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "admin spec",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_insurance-library-researcher",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Content Junior: Insurance Library Researcher",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "Head of Content and Compliance",
+   "status": "draft",
+   "purpose": "Research which products usually carry bundled cover and record it with source and review date.",
+   "responsibilities": [
+    "Use wording 'possible cover, verify with the lender'."
+   ],
+   "may": [
+    "Edit library entries via PR"
+   ],
+   "mustNot": [
+    "Publish entries without a source"
+   ],
+   "handsOff": "Head of Content and Compliance",
+   "reads": "CLAUDE.md, data rails",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Research which products usually carry bundled cover and record it with source and review date.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/insurance-library-researcher.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_legal-assistant",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Content Junior: Legal Assistant",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "Head of Content and Compliance",
+   "status": "draft",
+   "purpose": "Research Indian law and cases with citations and draft consent texts, letters and policies for the human advocate to review.",
+   "responsibilities": [
+    "Cite provision, case and date; flag uncertainty."
+   ],
+   "may": [
+    "Draft documents"
+   ],
+   "mustNot": [
+    "Give final legal sign-off",
+    "Publish anything without advocate approval"
+   ],
+   "handsOff": "Human advocate (via the founder)",
+   "reads": "CLAUDE.md, data rails, consent texts",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Research Indian law and cases with citations and draft consent texts, letters and policies for the human advocate to review.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/legal-assistant.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "consent texts",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_mobile-web-lead",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Mobile and Web Lead",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "CTO",
+   "status": "active",
+   "purpose": "Own the React Native app, the Next.js web portal and mobile site; keep platforms in step through shared packages.",
+   "responsibilities": [
+    "Review mobile/web PRs; keep screens consistent with the mockups.",
+    "Assign work to `dev-mobile` and `dev-web` through the Orchestrator."
+   ],
+   "may": [
+    "Approve or request changes on UI PRs"
+   ],
+   "mustNot": [
+    "Duplicate logic that belongs in `packages/*`",
+    "Merge to `main`"
+   ],
+   "handsOff": "Developers, UX Lead, Head of Quality",
+   "reads": "CLAUDE.md, mockups, PRD",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own the React Native app, the Next.js web portal and mobile site; keep platforms in step through shared packages.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#18 E1: Implement crypto primitives, ciphertext header and known-answer tests [p0, risk:high]",
+     "status": "todo",
+     "issue": 18
+    },
+    {
+     "text": "#19 E1: Implement vault key hierarchy and 12-word recovery key (web vault key in memory only) [p0, risk:high]",
+     "status": "todo",
+     "issue": 19
+    },
+    {
+     "text": "#20 E1: Implement identity key bundles, sealing to members and safety numbers [p0, risk:high]",
+     "status": "todo",
+     "issue": 20
+    },
+    {
+     "text": "#21 E2: Add email sign-in (link and code) with server sessions and rate limits [p0, risk:high]",
+     "status": "todo",
+     "issue": 21
+    },
+    {
+     "text": "#22 E2: Build first-device setup on web: create vault key, confirm recovery key, enrol browser [p0, risk:high]",
+     "status": "todo",
+     "issue": 22
+    },
+    {
+     "text": "#24 E4: Build vault web screens: encrypted upload, categories, on-device search, download [p0, risk:high]",
+     "status": "todo",
+     "issue": 24
+    },
+    {
+     "text": "#25 E6: Add family and person profiles with email invites [p0, risk:high]",
+     "status": "todo",
+     "issue": 25
+    },
+    {
+     "text": "#26 E6: Add basic sharing: family folder, viewer and editor roles, remove member with key rotation [p0, risk:high]",
+     "status": "todo",
+     "issue": 26
+    },
+    {
+     "text": "#56 Demo: wire the demo flag and data-source guards in apps/web [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 56
+    },
+    {
+     "text": "#58 Demo: add the demo layout with the banner, EN/HI toggle and route test [p1, blocked]",
+     "status": "todo",
+     "issue": 58
+    },
+    {
+     "text": "#60 Demo: build the public website and the no-store waitlist form [p1, blocked]",
+     "status": "todo",
+     "issue": 60
+    },
+    {
+     "text": "#62 Demo: build Home with the readiness score [p1, blocked]",
+     "status": "todo",
+     "issue": 62
+    },
+    {
+     "text": "#63 Demo: build Documents with search, categories and expiry [p1, blocked]",
+     "status": "todo",
+     "issue": 63
+    },
+    {
+     "text": "#64 Demo: build the Emergency card screen on seed data [p1, blocked]",
+     "status": "todo",
+     "issue": 64
+    },
+    {
+     "text": "#65 Demo: make the emergency card work with the network off [p1, blocked, risk:high]",
+     "status": "todo",
+     "issue": 65
+    },
+    {
+     "text": "#66 Demo: build Money with net worth, liabilities and the nominee check [p1, blocked]",
+     "status": "todo",
+     "issue": 66
+    },
+    {
+     "text": "#67 Demo: build the hidden-insurance questionnaire and draft letter [p1, blocked]",
+     "status": "todo",
+     "issue": 67
+    },
+    {
+     "text": "#69 Demo: build the Family and recovery screen [p1, blocked]",
+     "status": "todo",
+     "issue": 69
+    },
+    {
+     "text": "#70 Demo: extract the shared CSP and headers package [p1, risk:high]",
+     "status": "todo",
+     "issue": 70
+    },
+    {
+     "text": "#75 Demo: add the phone view under the /m route group [p1, blocked]",
+     "status": "todo",
+     "issue": 75
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/mobile-web-lead.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_pipeline-agent",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "DevOps Junior: Pipeline",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "DevOps Lead",
+   "status": "draft",
+   "purpose": "Maintain CI workflows and caching; keep builds fast and reliable.",
+   "responsibilities": [
+    "Fix failing pipelines; never weaken a check."
+   ],
+   "may": [
+    "Edit workflows via PR"
+   ],
+   "mustNot": [
+    "Add secrets",
+    "Skip required checks"
+   ],
+   "handsOff": "DevOps Lead",
+   "reads": "CLAUDE.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Maintain CI workflows and caching; keep builds fast and reliable.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/pipeline-agent.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_pitch-agent",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Pitch and Investor Relations Agent",
+   "role": "Head \u00b7 active from Beta",
+   "reportsTo": "Founder via Chief of Staff",
+   "status": "draft",
+   "purpose": "Produce pitch decks, one-pagers, FAQs, assumptions sheets and grant/incubator applications from verified inputs.",
+   "responsibilities": [
+    "Build documents from the restricted business model, roadmap, budget and aggregate metrics supplied by the founder.",
+    "Label every figure with a source or mark it as an assumption.",
+    "Refresh after each milestone."
+   ],
+   "may": [
+    "Draft decks and documents for the founder"
+   ],
+   "mustNot": [
+    "Invent traction, users or revenue",
+    "Make unverified competitor or legal claims",
+    "Send anything outside"
+   ],
+   "handsOff": "Founder (and the advocate/CA for fundraising wording)",
+   "reads": "Restricted inputs given directly by the founder (kept outside this repo); docs/status; docs/versions-and-timeline.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Produce pitch decks, one-pagers, FAQs, assumptions sheets and grant/incubator applications from verified inputs.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/pitch-agent.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "Restricted inputs given directly by the founder (kept outside this repo)",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "docs/status",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "docs/versions-and-timeline.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_product-intel-lead",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Product Intelligence Lead",
+   "role": "Head \u00b7 active from Alpha (steward, red-team), Beta (scout, watcher)",
+   "reportsTo": "Head of Product",
+   "status": "active",
+   "purpose": "Keep the product's features, limits, loopholes and workarounds continuously researched and recorded.",
+   "responsibilities": [
+    "Maintain the feature registry in `docs/features/REGISTRY.md`.",
+    "Review weekly outputs of the scout, regulation watcher, steward and red-team; forward the best as issues.",
+    "Cap proposals to a few per week, ranked by impact; each must cite its source."
+   ],
+   "may": [
+    "Open `type:research`, `type:loophole`, `type:regulation` issues"
+   ],
+   "mustNot": [
+    "Change scope",
+    "Publish unverified claims as fact"
+   ],
+   "handsOff": "Head of Product, Head of Security, Content/Compliance Head",
+   "reads": "CLAUDE.md, PRD, feature registry, threat model",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Keep the product's features, limits, loopholes and workarounds continuously researched and recorded.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/product-intel-lead.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "feature registry",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": [
+    {
+     "name": "Review weekly outputs of scout, watcher, steward, red-team",
+     "cadence": "Weekly",
+     "state": "planned",
+     "next": "",
+     "note": "From role file"
+    }
+   ]
+  },
+  {
+   "id": "fv_red-team",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Intel Junior: Red Team and Loophole Hunter",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Product Intelligence Lead (dotted line to Head of Security)",
+   "status": "active",
+   "purpose": "Find abuse and failure cases before users do: false heirs, family disputes, misused emergency access, leaked links, recovery edge cases, workaround of intended flows, platform-policy loopholes.",
+   "responsibilities": [
+    "Test only against synthetic data in dev/staging.",
+    "File each finding with steps, impact and a suggested guard."
+   ],
+   "may": [
+    "Open `type:loophole` issues"
+   ],
+   "mustNot": [
+    "Attack production or real accounts",
+    "Publish findings outside the repo"
+   ],
+   "handsOff": "Head of Security",
+   "reads": "CLAUDE.md, threat model, feature registry",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash"
+   ],
+   "goals": [
+    {
+     "text": "Find abuse and failure cases before users do: false heirs, family disputes, misused emergency access, leaked links, recovery edge cases, workaround of intended flows, platform-policy loopholes.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/red-team.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "threat model",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "feature registry",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_regulation-watcher",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Intel Junior: Regulation Watcher",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "Product Intelligence Lead",
+   "status": "draft",
+   "purpose": "Weekly scan for rule and policy changes: data protection, Account Aggregator, insurance, DigiLocker, ONDC, Play and App Store policies.",
+   "responsibilities": [
+    "Summarise what changes and what it breaks or opens, with links."
+   ],
+   "may": [
+    "Open `type:regulation` issues"
+   ],
+   "mustNot": [
+    "Give legal advice",
+    "State a rule without a source"
+   ],
+   "handsOff": "Product Intelligence Lead, Legal assistant",
+   "reads": "CLAUDE.md, data rails",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch"
+   ],
+   "goals": [
+    {
+     "text": "Weekly scan for rule and policy changes: data protection, Account Aggregator, insurance, DigiLocker, ONDC, Play and App Store policies.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/regulation-watcher.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "data rails",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": [
+    {
+     "name": "Scan rule and policy changes",
+     "cadence": "Weekly",
+     "state": "planned",
+     "next": "",
+     "note": "From role file"
+    }
+   ]
+  },
+  {
+   "id": "fv_release-agent",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "DevOps Junior: Release",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "DevOps Lead",
+   "status": "draft",
+   "purpose": "Assemble release candidates, notes and store-build checklists.",
+   "responsibilities": [
+    "Produce release notes from merged PRs."
+   ],
+   "may": [
+    "Draft notes and checklists"
+   ],
+   "mustNot": [
+    "Submit or publish builds"
+   ],
+   "handsOff": "DevOps Lead, Founder",
+   "reads": "CLAUDE.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Assemble release candidates, notes and store-build checklists.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/release-agent.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_spec-writer",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "PM Junior: Spec Writer",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Product",
+   "status": "active",
+   "purpose": "Turn PRD sections into issues with user goal, acceptance checks, screen links and size.",
+   "responsibilities": [
+    "Use the issue templates.",
+    "Split anything larger than a few days."
+   ],
+   "may": [
+    "Create and edit issues"
+   ],
+   "mustNot": [
+    "Reorder the backlog",
+    "Add scope not in the PRD"
+   ],
+   "handsOff": "Head of Product",
+   "reads": "CLAUDE.md, PRD, mockups",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Turn PRD sections into issues with user goal, acceptance checks, screen links and size.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/spec-writer.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_support-ops",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Compliance Junior: Support and Compliance Ops",
+   "role": "Junior \u00b7 active from v1",
+   "reportsTo": "Head of Content and Compliance",
+   "status": "draft",
+   "purpose": "Draft replies and track data-access, correction and erasure requests and grievances (metadata only).",
+   "responsibilities": [
+    "Track deadlines."
+   ],
+   "may": [
+    "Draft replies"
+   ],
+   "mustNot": [
+    "Access user content",
+    "Send replies without human approval"
+   ],
+   "handsOff": "Head of Content and Compliance",
+   "reads": "CLAUDE.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Draft replies and track data-access, correction and erasure requests and grievances (metadata only).",
+     "horizon": "v1",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/support-ops.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_test-automation",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "QA Junior: Test Automation",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "Head of Quality",
+   "status": "active",
+   "purpose": "Write and maintain automated unit, integration and end-to-end tests.",
+   "responsibilities": [
+    "Write tests from acceptance checks before or alongside code.",
+    "Keep test data synthetic."
+   ],
+   "may": [
+    "Write test code"
+   ],
+   "mustNot": [
+    "Change product code to make a test pass"
+   ],
+   "handsOff": "Head of Quality",
+   "reads": "CLAUDE.md, the issue, test plans",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Write and maintain automated unit, integration and end-to-end tests.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/test-automation.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "the issue",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "test plans",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_translator",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "Content Junior: Translator",
+   "role": "Junior \u00b7 active from Beta",
+   "reportsTo": "Head of Content and Compliance",
+   "status": "draft",
+   "purpose": "Translate UI strings and help content between English and Hindi.",
+   "responsibilities": [
+    "Keep tone plain and respectful."
+   ],
+   "may": [
+    "Edit string files via PR"
+   ],
+   "mustNot": [
+    "Translate legal text without Legal review"
+   ],
+   "handsOff": "UX Lead",
+   "reads": "CLAUDE.md",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Translate UI strings and help content between English and Hindi.",
+     "horizon": "Beta",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/translator.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_ui-designer",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "UX Junior: UI Designer",
+   "role": "Junior \u00b7 active from Alpha",
+   "reportsTo": "UX Lead",
+   "status": "active",
+   "purpose": "Produce component specs and screen details from the mockups for developers.",
+   "responsibilities": [
+    "Spec states: empty, loading, error, offline.",
+    "Provide tokens and spacing."
+   ],
+   "may": [
+    "Edit `docs/design/` via PR"
+   ],
+   "mustNot": [
+    "Change data contracts"
+   ],
+   "handsOff": "UX Lead",
+   "reads": "CLAUDE.md, mockups, design docs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Produce component specs and screen details from the mockups for developers.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [
+    {
+     "name": "Rework rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Test-failure rate",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    },
+    {
+     "name": "Time per ticket",
+     "target": null,
+     "unit": "",
+     "cadence": "weekly",
+     "dir": "down",
+     "current": null
+    }
+   ],
+   "todos": [],
+   "source": "repo",
+   "sourceFile": ".claude/agents/ui-designer.md",
+   "level": "Junior",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "design docs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "id": "fv_ux-lead",
+   "projectId": "Skybirds-Empyrean-Avenue__familyvault",
+   "name": "UX Lead",
+   "role": "Head \u00b7 active from Alpha",
+   "reportsTo": "Head of Product",
+   "status": "active",
+   "purpose": "Own screens, components, copy, accessibility and English/Hindi layouts; keep the build faithful to the 21 mockups and the new screens.",
+   "responsibilities": [
+    "Review every UI pull request against the mockups; comment with screenshots.",
+    "Maintain the design tokens and component list in `docs/design/`.",
+    "Write and review user-facing copy in English and Hindi (with the translator agent).",
+    "Check accessibility: contrast, tap targets, screen-reader labels, large-text behaviour.",
+    "Specify new screens (net worth, hidden insurance, admin console) before developers build them."
+   ],
+   "may": [
+    "Approve or request changes on UI PRs",
+    "Edit design docs and component stories via PR"
+   ],
+   "mustNot": [
+    "Change API or data contracts",
+    "Merge to `main`",
+    "Publish copy with legal claims without Legal review"
+   ],
+   "handsOff": "Developers, Head of Quality",
+   "reads": "CLAUDE.md, mockups, PRD UX sections, design docs",
+   "requirements": [],
+   "tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "Grep",
+    "Glob"
+   ],
+   "goals": [
+    {
+     "text": "Own screens, components, copy, accessibility and English/Hindi layouts; keep the build faithful to the 21 mockups and the new screens.",
+     "horizon": "Alpha (target 11 Nov 2026)",
+     "done": false
+    }
+   ],
+   "kras": [],
+   "kpis": [],
+   "todos": [
+    {
+     "text": "#59 Demo: write the UX spec for the public website [p1]",
+     "status": "todo",
+     "issue": 59
+    },
+    {
+     "text": "#68 Demo: write the UX spec for Family and recovery [p1]",
+     "status": "todo",
+     "issue": 68
+    },
+    {
+     "text": "#71 Demo: write the UX spec for the admin console demo [p1]",
+     "status": "todo",
+     "issue": 71
+    }
+   ],
+   "source": "repo",
+   "sourceFile": ".claude/agents/ux-lead.md",
+   "level": "Head",
+   "createdAt": 1791703974699,
+   "memory": [
+    {
+     "text": "CLAUDE.md wins if this role file conflicts with it",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "After two failed attempts or the time limit on a ticket: set status:needs-human and stop",
+     "at": "2026-10-11",
+     "src": "role file"
+    },
+    {
+     "text": "Never touch secrets, production, real user data, money, app-store submissions or outside communication",
+     "at": "2026-10-11",
+     "src": "role file"
+    }
+   ],
+   "docs": [
+    {
+     "title": "CLAUDE.md",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "mockups",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "PRD UX sections",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    },
+    {
+     "title": "design docs",
+     "path": "",
+     "note": "Listed under 'Reads at the start of a run'"
+    }
+   ],
+   "skills": [],
+   "routines": []
+  },
+  {
+   "autonomy": "review",
+   "createdAt": 1791703400000,
+   "example": true,
+   "goals": [
+    {
+     "done": true,
+     "horizon": "30 days",
+     "text": "Write a one-page audience and positioning brief"
+    },
+    {
+     "done": false,
+     "horizon": "90 days",
+     "text": "Publish a steady content cadence"
+    },
+    {
+     "done": false,
+     "horizon": "6 months",
+     "text": "Grow organic visits month over month"
+    }
+   ],
+   "id": "a_example1",
+   "kpis": [
+    {
+     "cadence": "monthly",
+     "current": 5,
+     "dir": "up",
+     "name": "Posts published",
+     "target": 8,
+     "unit": "per month"
+    },
+    {
+     "cadence": "monthly",
+     "current": 1450,
+     "dir": "up",
+     "name": "Organic visits",
+     "target": 2000,
+     "unit": "per month"
+    },
+    {
+     "cadence": "monthly",
+     "current": null,
+     "dir": "up",
+     "name": "Drafts approved on first review",
+     "target": 70,
+     "unit": "%"
+    }
+   ],
+   "kras": [
+    {
+     "area": "Content output",
+     "outcome": "Planned pieces published on time",
+     "weight": 35
+    },
+    {
+     "area": "Audience growth",
+     "outcome": "More qualified visitors and sign-ups",
+     "weight": 40
+    },
+    {
+     "area": "Brand consistency",
+     "outcome": "Voice and message stay aligned",
+     "weight": 25
+    }
+   ],
+   "name": "MarketingSite_Mock Content & Growth",
+   "projectId": "sagarradia__MarketingSite_Mock",
+   "purpose": "Plans and drafts content that brings the right people to sagarradia/MarketingSite_Mock. Every piece is approved by a human before it is published.",
+   "reportsTo": "Founder / marketing lead",
+   "requirements": [
+    "Strong writing and editing",
+    "Basic SEO knowledge",
+    "Reads analytics and draws plain conclusions",
+    "Does not publish without sign-off"
+   ],
+   "responsibilities": [
+    "Maintain a content calendar tied to the site's goals",
+    "Draft landing page copy and blog posts for approval",
+    "Research keywords and competitor pages",
+    "Track visits and sign-ups from each piece",
+    "Keep the brand voice consistent",
+    "Report what worked each month"
+   ],
+   "role": "Content & Growth Agent",
+   "source": "template",
+   "status": "active",
+   "task": "plan and draft content for the marketing site",
+   "todos": [
+    {
+     "status": "done",
+     "text": "Write the audience and positioning brief"
+    },
+    {
+     "status": "doing",
+     "text": "Audit the current site and list quick wins"
+    },
+    {
+     "status": "todo",
+     "text": "Build a 30-day content calendar"
+    },
+    {
+     "status": "todo",
+     "text": "Draft the first two pieces for approval"
+    },
+    {
+     "status": "todo",
+     "text": "Set up tracking for visits and sign-ups"
+    }
+   ],
+   "tools": [
+    "Site repository (GitHub)",
+    "Web analytics",
+    "Keyword research tool"
+   ]
+  }
+ ],
+ "projects": {
+  "brief": "FamilyVault (working title) is an India-focused app (Android, iOS, web and mobile web) that helps families keep documents, emergency information, finances and legacy plans organised and ready. Alpha target: 11 Nov 2026. Agents are defined in .claude/agents and the org chart is in docs/org-structure.md."
+ }
+}
