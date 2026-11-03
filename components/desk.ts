@@ -7,6 +7,9 @@ import {
   isBlocked, lateCount, routineLate, libCount, attention, nextDue, sortAg, buildTree,
   repoById as repoByIdIn, shortName as shortNameIn, fullName as fullNameIn,
 } from '@/lib/model';
+import { norm as scopeNorm, toMix, applies as appliesLib, isEmpty as scopeEmpty, giveTo, removeFor, toggle as tgl } from '@/lib/scope';
+import { syncAgent, syncAll, sharedFor, sharedLabel, materialises, SHARED_KINDS } from '@/lib/shared';
+import { readUpload, scan as scanPkg, LIMITS as PKG_LIMITS } from '@/lib/pkg';
 import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, taskState, taskPct, roll, isLead, coverFor, suggestBackup, STATE_LABEL, STATE_HELP, REST_CHOICES } from '@/lib/status';
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
@@ -34,7 +37,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -258,7 +261,7 @@ function panelHTML(){
   h+='<div class="facts"><div><span>Project</span><b>'+esc(fullName(a.projectId))+'</b></div><div><span>Reports to</span><b>'+esc(a.reportsTo||'—')+'</b></div>'+(modelOf(a).now?'<div><span>Model</span><b>'+esc(modelOf(a).now)+' now · planned '+esc(modelOf(a).prop)+'</b></div>':'')
    +'<div><span>Status</span><select id="st-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Created</span><b>'+esc(fmtDate(a.createdAt)||'—')+(a.source==='claude'?' · drafted by Claude':a.source==='template'?' · from template':a.source==='repo'?' · imported from role file':'')+'</b></div></div>';
-  h+=ctlBlock(a);
+  h+=ctlBlock(a)+appliesBlock(a);
   if(a.progress){var g=a.progress;h+='<section class="sec"><h3>Progress · '+esc(g.asOf)+'</h3><p>'+(g.assigned?g.done+' of '+g.assigned+' tickets done ('+g.pct+'%), '+g.open+' open. ':'No tickets of its own. ')+(g.lastActive?'Last active '+esc(g.lastActive)+(g.idleDays!=null?' ('+g.idleDays+' days ago).':'.'):'No recorded activity.')+'</p><ul class="plain">'+(g.reasons||[]).map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></section>'}
   h+='<section class="sec"><h3>Job description</h3><p>'+esc(a.purpose||'')+'</p>'
    +((a.task)?'<p class="hint">Task given: '+esc(a.task)+'</p>':'')
@@ -381,10 +384,12 @@ function render(){
   try{if(ae&&ae.selectionStart!=null){s0=ae.selectionStart;s1=ae.selectionEnd}}catch(e){}
   var pb=overlay.querySelector('.panel-body'),pt=pb?pb.scrollTop:0,mb=overlay.querySelector('.modal-body'),mt=mb?mb.scrollTop:0;
   var lg=document.getElementById('chat-log'),lt=lg?lg.scrollTop:0,near=lg?(lg.scrollHeight-lg.scrollTop-lg.clientHeight<90):true;
+  var pbx=[].map.call(overlay.querySelectorAll('.pickbox'),function(b:any){return b.scrollTop});
   var sw=app.querySelector('.sheetwrap'),sl=sw?sw.scrollLeft:0,stp=sw?sw.scrollTop:0;
   var ms=document.scrollingElement?document.scrollingElement.scrollTop:0;
   app.innerHTML=shellHTML();
-  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML();
+  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML()+impHTML();
+  [].forEach.call(overlay.querySelectorAll('.pickbox'),function(b:any,i:number){if(pbx[i])b.scrollTop=pbx[i]});
   var pb2=overlay.querySelector('.panel-body');if(pb2)pb2.scrollTop=pt;
   var mb2=overlay.querySelector('.modal-body');if(mb2)mb2.scrollTop=mt;
   var lg2=document.getElementById('chat-log');
@@ -439,7 +444,7 @@ function createAgent(){
     routines:[{name:'Status update to '+(s.reportsTo||'the owner'),cadence:w.extras.cadence,state:'planned',next:'',note:'Set when the agent was built'}],
     memory:w.extras.notes.trim()?[{text:w.extras.notes.trim(),at:today(),src:'you'}]:[],
     source:w.source,createdAt:Date.now()};
-  S.agents.unshift(a);persist('agents',a.id,a);
+  S.agents.unshift(a);syncAgent(ext().shared,a,teamIndex());persist('agents',a.id,a);
   S.wizard=null;S.scope=w.projectId;S.tab='agents';S.openAgent=a.id;render();toast('Agent created');
 }
 function saveBrief(id:any,text:any,quiet?:any){
@@ -584,14 +589,21 @@ document.addEventListener('click',function(e){
   else if(act==='cap-tab'){S.capTab=el.dataset.sub;S.xdel=null;render()}
   else if(act==='x-new'||act==='x-edit'){
     var xk=el.dataset.kind,xo=null;
-    if(act==='x-edit'){var xa=xk==='rule'?ext().rules:ext().items;for(var xi=0;xi<xa.length;xi++)if(xa[xi].id===id)xo=xa[xi];if(!xo)return}
-    S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=null;S.edit=null;S.modelsOpen=false;
-    S.xe={kind:xk,id:xo?xo.id:null,f:xeFields(xk,xo)};render();
+    if(act==='x-edit'){var xa=xk==='rule'?ext().rules:xk==='shared'?ext().shared:ext().items;for(var xi=0;xi<xa.length;xi++)if(xa[xi].id===id)xo=xa[xi];if(!xo)return}
+    S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=null;S.edit=null;S.imp=null;S.modelsOpen=false;
+    var xsk=xk==='shared'?(xo?xo.kind:el.dataset.skind):'';
+    S.xe={kind:xk,id:xo?xo.id:null,skind:xsk,f:xeFields(xk,xo,xsk)};render();
   }
   else if(act==='x-close'){S.xe=null;render()}
+  else if(act==='x-reduce'){var rag=S.agents.filter(function(x){return x.id===el.dataset.agent})[0];if(rag)changeScopeFor(el.dataset.kind,id,rag,'remove')}
+  else if(act==='x-view'){S.xview[id]=!S.xview[id];render()}
+  else if(act==='shared-sync')applyShared(ext(),'Re-applied')
+  else if(act==='pkg-open')pkgOpen();
+  else if(act==='pkg-close'){S.imp=null;render()}
+  else if(act==='pkg-add')pkgAdd();
   else if(act==='x-save')saveXe();
   else if(act==='x-del'){S.xdel=id;render()}
-  else if(act==='x-del-ok'){var E2=clone(ext());if(el.dataset.kind==='rule')E2.rules=E2.rules.filter(function(r){return r.id!==id});else E2.items=E2.items.filter(function(r){return r.id!==id});S.xdel=null;saveExt(E2);render();toast('Removed')}
+  else if(act==='x-del-ok'){var E2=clone(ext());if(el.dataset.kind==='rule')E2.rules=E2.rules.filter(function(r){return r.id!==id});else if(el.dataset.kind==='shared')E2.shared=E2.shared.filter(function(r){return r.id!==id});else E2.items=E2.items.filter(function(r){return r.id!==id});S.xdel=null;saveExt(E2);if(el.dataset.kind==='shared')applyShared(E2,'Removed');else{render();toast('Removed')}}
   else if(act==='dirfull'){S.dirFull=!S.dirFull;render()}
   else if(act==='dirview'){S.dirView=el.dataset.view;try{localStorage.setItem('ad-dirview',S.dirView)}catch(e){}render()}
   else if(act==='dirsel'){S.dirSel=id;render();var pc=document.getElementById('pp-card');if(pc)pc.scrollTop=0}
@@ -664,6 +676,11 @@ document.addEventListener('change',function(e){
   var t=e.target;
   if(t.dataset.flt!==undefined){S.flt=t.value;render()}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value;if(t.dataset.xf==='mode'){S.xe.f.scope.mode=t.value;render()}}
+  else if(t.dataset.xs){var scx=curScope(t.dataset.own);if(scx){if(t.dataset.xs==='all')scx.all=t.checked;else scx[t.dataset.xs]=tgl(scx[t.dataset.xs]||[],t.value,t.checked);scx.mode='mix';render()}}
+  else if(t.dataset.pkg!==undefined){if(t.files&&t.files.length)pkgRead(t.files)}
+  else if(t.dataset.pkgsel!==undefined&&S.imp){S.imp.cands[Number(t.dataset.pkgsel)].on=t.checked;render()}
+  else if(t.dataset.pkgf&&S.imp){S.imp[t.dataset.pkgf]=t.value}
+  else if(t.dataset.give){var gag=S.agents.filter(function(x){return x.id===t.dataset.give})[0],gi=String(t.value).indexOf(':');if(gag&&gi>0)changeScopeFor(t.value.slice(0,gi),t.value.slice(gi+1),gag,'give')}
   else if(t.dataset.xc&&S.xe){var xl=S.xe.f.scope[t.dataset.xc],xp=xl.indexOf(t.value);if(t.checked&&xp<0)xl.push(t.value);else if(!t.checked&&xp>=0)xl.splice(xp,1);render()}
   else if(t.dataset.xi){var E3=clone(ext());E3.items.forEach(function(x){if(x.id===t.dataset.id)x[t.dataset.xi]=t.value});saveExt(E3);render()}
   else if(t.dataset.mdl){var mv=t.value,mw=t.dataset.mdl;mutate(t.dataset.id,function(a){if(mw==='now')a.model=mv;else a.modelPlanned=mv})}
@@ -705,7 +722,8 @@ document.addEventListener('change',function(e){
 document.addEventListener('keydown',function(e){
   var t=e.target;
   if(e.key==='Escape'){
-    if(S.xe){S.xe=null;render()}
+    if(S.imp){S.imp=null;render()}
+    else if(S.xe){S.xe=null;render()}
     else if(S.edit){S.edit=null;render()}
     else if(S.modelsOpen){S.modelsOpen=false;render()}
     else if(S.wizard){if(S.wizard.ctl)S.wizard.ctl.abort();S.wizard=null;render()}
@@ -857,7 +875,7 @@ function personCard(a,team){
    +'<div><span>Model now</span>'+modelSel(a,'now')+'</div><div><span>Model planned</span>'+modelSel(a,'prop')+'</div>'
    +'<div><span>Work done</span><b>'+(g&&g.pct!=null?g.pct+'% ('+g.done+' of '+g.assigned+')':'No tickets of its own')+'</b></div>'
    +'<div><span>Last active</span><b>'+(g&&g.lastActive?esc(g.lastActive)+(g.idleDays!=null?' · '+g.idleDays+' days ago':''):'No record')+'</b></div></div>';
-  h+=ctlBlock(a);
+  h+=ctlBlock(a)+appliesBlock(a);
   if(a.purpose)h+=pcSec('Mission','<p>'+esc(a.purpose)+'</p>');
   if(g&&(g.reasons||[]).length)h+=pcSec('Why work is pending',ulN(g.reasons));
   h+='<div class="pc-cols">'+pcSec('Responsibilities',ulN(a.responsibilities))+'<div style="display:flex;flex-direction:column;gap:18px">'+pcSec('May',ulN(a.may))+pcSec('Must not',ulN(a.mustNot))+'</div></div>';
@@ -1264,35 +1282,40 @@ function defaultExt(){
    g('g8','Work only from a status:ready issue, one ticket at a time.','always'),
    g('g9','At most 3 open pull requests at a time.','always')],seeded:true};
 }
-function ext(){return S.ext||defaultExt()}
+function ext(){var E=S.ext||defaultExt();if(!E.shared)E.shared=[];return E}
 function saveExt(E){S.ext=E;persist('meta','ext',E)}
 function teamIndex(){var T=buildTree(S.agents),m={};T.roots.forEach(function(r){(function w(a){m[a.id]=r.name;(T.kids[a.id]||[]).forEach(w)})(r)});return m}
 function allTeams(){var T=buildTree(S.agents),o=[];T.roots.forEach(function(r){if(o.indexOf(r.name)<0)o.push(r.name)});return o.sort()}
-function applies(sc,a,tm){
-  sc=sc||{mode:'all'};
-  if(sc.mode==='all')return true;
-  if(sc.mode==='project')return (sc.projects||[]).indexOf(a.projectId)>=0;
-  if(sc.mode==='team')return (sc.teams||[]).indexOf(tm[a.id])>=0;
-  if(sc.mode==='people')return (sc.people||[]).indexOf(a.id)>=0;
-  return false;
-}
+function applies(sc,a,tm){return appliesLib(sc,a,tm)}
 function appliedTo(a){var E=ext(),tm=teamIndex();return {rules:E.rules.filter(function(r){return applies(r.scope,a,tm)}),items:E.items.filter(function(x){return x.status!=='off'&&applies(x.scope,a,tm)})}}
 function scopeText(sc){
-  sc=sc||{mode:'all'};
-  if(sc.mode==='all')return 'Every agent';
-  if(sc.mode==='project')return 'Project: '+((sc.projects||[]).map(shortName).join(', ')||'none chosen');
-  if(sc.mode==='team')return 'Team: '+((sc.teams||[]).join(', ')||'none chosen');
-  var nm=(sc.people||[]).map(function(id){var a=S.agents.filter(function(x){return x.id===id})[0];return a?a.name:null}).filter(Boolean);
-  return nm.length?(nm.length<=2?nm.join(', '):nm.length+' people: '+nm.slice(0,2).join(', ')+'…'):'People: none chosen';
+  var n=scopeNorm(sc),lv=(n.all?1:0)+(n.projects.length?1:0)+(n.teams.length?1:0)+(n.people.length?1:0),ex=n.except.length;
+  function nm(ids){return ids.map(function(id){var a=S.agents.filter(function(x){return x.id===id})[0];return a?a.name:null}).filter(Boolean)}
+  if(lv===1&&!ex){
+    if(n.all)return 'Every agent';
+    if(n.projects.length)return 'Project: '+(n.projects.map(shortName).join(', '));
+    if(n.teams.length)return 'Team: '+(n.teams.join(', '));
+    var p=nm(n.people);return p.length?(p.length<=2?p.join(', '):p.length+' people: '+p.slice(0,2).join(', ')+'…'):'People: none chosen';
+  }
+  if(!lv)return 'Nobody yet';
+  var parts=[];
+  if(n.all)parts.push('Whole organisation');
+  if(n.projects.length)parts.push('Project: '+n.projects.map(shortName).join(', '));
+  if(n.teams.length)parts.push('Team: '+n.teams.join(', '));
+  if(n.people.length){var q=nm(n.people);parts.push(q.length<=2?q.join(', '):q.length+' people')}
+  return parts.join(' + ')+(ex?' · except '+ex:'');
 }
 function countFor(sc){var tm=teamIndex();return S.agents.filter(function(a){return applies(sc,a,tm)}).length}
 function runtimeLabel(r){return !r||r==='any'?'Any model':mn(r)}
 function capView(list){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
-  var E=ext(),sub=[['catalog','Skills and plugins',E.items.length],['rules','Guardrails',E.rules.length],['tools','Tools in role files','']];
-  var h='<div class="vrow"><span class="seg" role="group" aria-label="Section">'+sub.map(function(x){return '<button class="btn small" data-act="cap-tab" data-sub="'+x[0]+'" aria-pressed="'+(S.capTab===x[0])+'">'+x[1]+(x[2]!==''?' · '+x[2]:'')+'</button>'}).join('')+'</span>';
-  if(S.capTab!=='tools')h+='<button class="btn primary small" data-act="x-new" data-kind="'+(S.capTab==='rules'?'rule':'item')+'">'+(S.capTab==='rules'?'Add a guardrail':'Add a skill or plugin')+'</button><span class="seg" role="group" aria-label="Layout"><button class="btn small" data-act="vw" data-tab="caps" data-view="cards" aria-pressed="'+!isSheet('caps')+'">Cards</button><button class="btn small" data-act="vw" data-tab="caps" data-view="sheet" aria-pressed="'+isSheet('caps')+'">Spreadsheet</button></span>';
+  var E=ext(),sub=[['catalog','Skills and plugins',E.items.length],['rules','Guardrails',E.rules.length],['shared','Shared items',E.shared.length],['tools','Tools in role files','']];
+  var h='<div class="vrow"><span class="seg" role="group" aria-label="Section">'+sub.map(function(x){return (x[0]==='shared'?'<!--ctl-->':'')+'<button class="btn small" data-act="cap-tab" data-sub="'+x[0]+'" aria-pressed="'+(S.capTab===x[0])+'">'+x[1]+(x[2]!==''?' · '+x[2]:'')+'</button>'+(x[0]==='shared'?'<!--/ctl-->':'')}).join('')+'</span>';
+  if(S.capTab==='catalog'||S.capTab==='rules')h+='<button class="btn primary small" data-act="x-new" data-kind="'+(S.capTab==='rules'?'rule':'item')+'">'+(S.capTab==='rules'?'Add a guardrail':'Add a skill or plugin')+'</button><span class="seg" role="group" aria-label="Layout"><button class="btn small" data-act="vw" data-tab="caps" data-view="cards" aria-pressed="'+!isSheet('caps')+'">Cards</button><button class="btn small" data-act="vw" data-tab="caps" data-view="sheet" aria-pressed="'+isSheet('caps')+'">Spreadsheet</button></span>';
+  if(S.capTab==='catalog')h+='<!--ctl--><button class="btn small" data-act="pkg-open">Add from downloaded files</button><!--/ctl-->';
+  if(S.capTab==='shared')h+=sharedAdd();
   h+='</div><p class="hint" style="margin-bottom:12px">This is a register. Setting something here records it and shapes what agents say in chat on this page. It does not install anything or change role files in the repo. '+(S.ext?'':'Starter guardrails are copied from FamilyVault\'s CLAUDE.md (11 Oct) and are saved once you change anything.')+'</p>';
+  if(S.capTab==='shared')return h+sharedView();
   if(S.capTab==='tools'){
     var cnt={};S.agents.forEach(function(a){(a.tools||[]).forEach(function(t){cnt[t]=(cnt[t]||0)+1})});
     var ks=Object.keys(cnt).sort(function(x,y){return cnt[y]-cnt[x]||x.localeCompare(y)});
@@ -1318,48 +1341,202 @@ function xCard(x,kind){
    +(kind==='item'?'<select class="cell" id="xs-'+id+'" data-xi="status" data-id="'+id+'" aria-label="Status of '+esc(x.name)+'">'+[['wanted','Wanted'],['installed','Installed'],['off','Off']].map(function(o){return '<option value="'+o[0]+'"'+(x.status===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>':'')+'</div>'
    +'<h3'+(kind==='rule'?' style="font:600 15px/1.4 var(--sans)"':'')+'>'+esc(kind==='rule'?x.text:x.name)+'</h3>'
    +(kind==='item'&&x.what?'<p>'+esc(x.what)+'</p>':'')+(kind==='item'&&x.source?'<p class="hint">Source: '+esc(x.source)+'</p>':'')+(kind==='rule'&&x.note?'<p class="hint">'+esc(x.note)+'</p>':'')
-   +'<p class="hint"><b>'+esc(scopeText(x.scope))+'</b> · '+n+' agent'+(n===1?'':'s')+(kind==='rule'&&x.src?' · from '+esc(x.src):'')+'</p>'
-   +'<div class="acts"><button class="btn small" data-act="x-edit" data-kind="'+kind+'" data-id="'+id+'">Edit</button><button class="btn small danger" data-act="'+(del?'x-del-ok':'x-del')+'" data-kind="'+kind+'" data-id="'+id+'">'+(del?'Really remove?':'Remove')+'</button></div></div>';
+   +pkgExtra(x,kind)+'<p class="hint"><b>'+esc(scopeText(x.scope))+'</b> · '+n+' agent'+(n===1?'':'s')+(kind==='rule'&&x.src?' · from '+esc(x.src):'')+'</p>'
+   +'<div class="acts"><button class="btn small" data-act="x-edit" data-kind="'+kind+'" data-id="'+id+'">Edit</button><!--ctl--><button class="btn small" data-act="x-edit" data-kind="'+kind+'" data-id="'+id+'">Change who gets it</button><!--/ctl--><button class="btn small danger" data-act="'+(del?'x-del-ok':'x-del')+'" data-kind="'+kind+'" data-id="'+id+'">'+(del?'Really remove?':'Remove')+'</button></div></div>';
 }
-function xeFields(kind,x){
-  var sc=x&&x.scope?clone(x.scope):{mode:'all'};sc.projects=sc.projects||[];sc.teams=sc.teams||[];sc.people=sc.people||[];
+function xeFields(kind,x,skind){
+  var sc=toMix(scopeNorm(x&&x.scope?x.scope:{mode:'mix',all:false}));
   if(kind==='rule')return {text:x?x.text:'',type:x?x.type:'never',note:x?x.note||'':'',scope:sc};
+  if(kind==='shared'){x=x||{};return {text:x.text||'',name:x.name||'',target:x.target==null?'':String(x.target),unit:x.unit||'',cadence:x.cadence||'weekly',dir:x.dir||'up',due:x.due||'',horizon:x.horizon||'',title:x.title||'',path:x.path||'',scope:sc}}
   return {name:x?x.name:'',kind:x?x.kind:'skill',runtime:x?x.runtime||'any':'any',status:x?x.status:'wanted',what:x?x.what||'':'',source:x?x.source||'':'',scope:sc};
 }
+var SK_LABEL={todo:'shared todo',kpi:'shared KPI',goal:'shared goal',memory:'shared memory note',doc:'shared document'};
+function curScope(own){return own==='imp'?(S.imp&&S.imp.scope):(S.xe&&S.xe.f.scope)}
+function scopeEditorHTML(sc,own){
+  var n=scopeNorm(sc),tm=teamIndex(),cnt=countFor(sc);
+  function cb(k,v,on,label,extra){return '<label><input type="checkbox" data-xs="'+k+'" data-own="'+own+'" value="'+esc(v)+'"'+(on?' checked':'')+'> '+label+(extra||'')+'</label>'}
+  var byName=S.agents.slice().sort(function(a:any,b:any){return String(a.name).localeCompare(String(b.name))});
+  var wide=toMix({all:n.all,projects:n.projects,teams:n.teams,people:n.people,except:[]}),cand=byName.filter(function(a:any){return appliesLib(wide,a,tm)||n.except.indexOf(a.id)>=0});
+  return '<div class="sec"><h3>Who it applies to</h3><p class="hint">Tick any mix of levels. Each one adds people. The last list leaves individuals out. You can change this later to widen or narrow it.</p>'
+   +'<div class="lvl"><div class="pickbox" style="max-height:none">'+cb('all','all',n.all,'<b>Organisation</b>: every agent in every project')+'</div></div>'
+   +'<div class="lvl"><span class="lvl-t">Projects (repositories)</span><div class="pickbox">'+S.repos.map(function(r:any){var v=rid(r);return cb('projects',v,n.projects.indexOf(v)>=0,esc(r.full_name.split('/')[1]))}).join('')+'</div></div>'
+   +'<div class="lvl"><span class="lvl-t">Teams</span><div class="pickbox">'+(allTeams().map(function(t:any){return cb('teams',t,n.teams.indexOf(t)>=0,esc(t))}).join('')||'<span class="hint">No teams yet.</span>')+'</div></div>'
+   +'<div class="lvl"><span class="lvl-t">Individuals</span><div class="pickbox">'+byName.map(function(a:any){return cb('people',a.id,n.people.indexOf(a.id)>=0,esc(a.name),' <small class="hint">'+esc(tm[a.id]||'')+'</small>')}).join('')+'</div></div>'
+   +'<div class="lvl"><span class="lvl-t">Except these individuals</span><div class="pickbox">'+(cand.length?cand.map(function(a:any){return cb('except',a.id,n.except.indexOf(a.id)>=0,esc(a.name),' <small class="hint">'+esc(tm[a.id]||'')+'</small>')}).join(''):'<span class="hint">Choose a level above first.</span>')+'</div></div>'
+   +'<span class="hint" aria-live="polite">Applies to <b>'+cnt+'</b> of '+S.agents.length+' agent'+(S.agents.length===1?'':'s')+' right now.</span></div>';
+}
 function xeHTML(){
-  var e=S.xe;if(!e)return '';var f=e.f,item=e.kind==='item';
-  var h='<div class="scrim" data-act="x-close"></div><aside class="panel" role="dialog" aria-label="'+(item?'Skill or plugin':'Guardrail')+'"><div class="panel-head"><div><h2>'+(e.id?'Edit ':'Add ')+(item?'skill or plugin':'guardrail')+'</h2></div><div class="btns"><button class="btn small primary" data-act="x-save">Save</button><button class="btn small" data-act="x-close">Cancel</button></div></div><div class="panel-body">';
-  function sel(k,opts,cur,lab){return '<div class="fld"><label for="xf-'+k+'">'+lab+'</label><select id="xf-'+k+'" data-xf="'+k+'">'+opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>'}).join('')+'</select></div>'}
+  var e=S.xe;if(!e)return '';var f=e.f,item=e.kind==='item',sh=e.kind==='shared';
+  var ttl=item?'skill or plugin':sh?SK_LABEL[e.skind]:'guardrail';
+  var h='<div class="scrim" data-act="x-close"></div><aside class="panel" role="dialog" aria-label="'+esc(item?'Skill or plugin':sh?SK_LABEL[e.skind]:'Guardrail')+'"><div class="panel-head"><div><h2>'+(e.id?'Edit ':'Add ')+ttl+'</h2></div><div class="btns"><button class="btn small primary" data-act="x-save">Save</button><button class="btn small" data-act="x-close">Cancel</button></div></div><div class="panel-body">';
+  function sel(k,opts,cur,lab){return '<div class="fld"><label for="xf-'+k+'">'+lab+'</label><select id="xf-'+k+'" data-xf="'+k+'">'+opts.map(function(o:any){return '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>'}).join('')+'</select></div>'}
+  function txt(k,lab,ph,ty){return '<div class="fld"><label for="xf-'+k+'">'+lab+'</label><input type="'+(ty||'text')+'" id="xf-'+k+'" data-xf="'+k+'" value="'+esc(f[k])+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+'></div>'}
+  function area(k,lab,ph){return '<div class="fld"><label for="xf-'+k+'">'+lab+'</label><textarea id="xf-'+k+'" data-xf="'+k+'" rows="3"'+(ph?' placeholder="'+esc(ph)+'"':'')+'>'+esc(f[k])+'</textarea></div>'}
   if(item){
     h+='<div class="fld"><label for="xf-name">Name</label><input type="text" id="xf-name" data-xf="name" value="'+esc(f.name)+'" placeholder="For example Weekly regulation scan"></div>'
      +sel('kind',KINDS,f.kind,'Kind')
-     +sel('runtime',[['any','Any model']].concat(modelList().map(function(m){return [m.id,m.name]})),f.runtime,'Runs on')
+     +sel('runtime',[['any','Any model']].concat(modelList().map(function(m:any){return [m.id,m.name]})),f.runtime,'Runs on')
      +sel('status',[['wanted','Wanted (not set up yet)'],['installed','Installed'],['off','Off']],f.status,'Status')
      +'<div class="fld"><label for="xf-what">What it does</label><textarea id="xf-what" data-xf="what" rows="3">'+esc(f.what)+'</textarea></div>'
      +'<div class="fld"><label for="xf-source">Where it comes from</label><input type="text" id="xf-source" data-xf="source" value="'+esc(f.source)+'" placeholder="A link, a repo path or a marketplace name"></div>';
+  }else if(sh){
+    var k=e.skind;
+    if(k==='todo')h+=area('text','The todo','For example Review open pull requests')+txt('due','Due date (optional)','','date');
+    else if(k==='goal')h+=area('text','The goal','')+txt('horizon','When (optional)','For example Alpha, Q1')+txt('due','Due date (optional)','','date');
+    else if(k==='kpi')h+=txt('name','KPI name','For example Cycle time')+txt('target','Target number','10','number')+txt('unit','Unit','days')+sel('cadence',[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['quarterly','Quarterly']],f.cadence,'How often')+sel('dir',[['up','Higher is better'],['down','Lower is better']],f.dir,'Direction');
+    else if(k==='memory')h+=area('text','The note','Something these agents should always keep in mind');
+    else h+=txt('title','Document title','')+txt('path','Path or link (optional)','');
+    h+='<p class="hint">'+(materialises(k)?'This is copied onto each agent in scope, so each one tracks its own progress. Widening adds it to more agents. Narrowing removes the copies that have no progress yet and keeps the ones that do.':'This is read when an agent chats. It is not copied.')+'</p>';
   }else{
     h+=sel('type',RTYPES,f.type,'Type')
      +'<div class="fld"><label for="xf-text">The rule</label><textarea id="xf-text" data-xf="text" rows="3" placeholder="For example Never merge without Quality approval">'+esc(f.text)+'</textarea></div>'
      +'<div class="fld"><label for="xf-note">Why (optional)</label><input type="text" id="xf-note" data-xf="note" value="'+esc(f.note)+'"></div>';
   }
-  var sc=f.scope;
-  h+='<div class="sec"><h3>Who it applies to</h3>'+sel('mode',[['all','Every agent'],['project','A project'],['team','A team'],['people','Named people']],sc.mode,'Applies to');
-  if(sc.mode==='project')h+='<div class="pickbox">'+S.repos.map(function(r,i){var v=rid(r);return '<label><input type="checkbox" id="xc-p'+i+'" data-xc="projects" value="'+esc(v)+'"'+(sc.projects.indexOf(v)>=0?' checked':'')+'> '+esc(r.full_name.split('/')[1])+'</label>'}).join('')+'</div>';
-  if(sc.mode==='team')h+='<div class="pickbox">'+allTeams().map(function(t,i){return '<label><input type="checkbox" id="xc-t'+i+'" data-xc="teams" value="'+esc(t)+'"'+(sc.teams.indexOf(t)>=0?' checked':'')+'> '+esc(t)+'</label>'}).join('')+'</div>';
-  if(sc.mode==='people'){var tm=teamIndex();h+='<div class="pickbox">'+S.agents.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).map(function(a,i){return '<label><input type="checkbox" id="xc-a'+i+'" data-xc="people" value="'+esc(a.id)+'"'+(sc.people.indexOf(a.id)>=0?' checked':'')+'> '+esc(a.name)+' <small class="hint">'+esc(tm[a.id]||'')+'</small></label>'}).join('')+'</div>'}
-  h+='<span class="hint">Applies to '+countFor(sc)+' agent'+(countFor(sc)===1?'':'s')+' right now.</span></div></div></aside>';
-  return h;
+  return h+scopeEditorHTML(f.scope,'xe')+'</div></aside>';
+}
+function sharedInvalid(k,f){
+  if((k==='todo'||k==='goal'||k==='memory')&&!String(f.text).trim())return k==='memory'?'Write the note':'Write the '+k;
+  if(k==='kpi'){if(!String(f.name).trim())return 'Give the KPI a name';if(f.target!==''&&!isFinite(Number(f.target)))return 'The target must be a number'}
+  if(k==='doc'&&!String(f.title).trim())return 'Give the document a title';
+  return '';
+}
+function applyShared(E,prefix){
+  var r=syncAll(E.shared,S.agents,teamIndex());
+  r.ids.forEach(function(id:any){var a=S.agents.filter(function(x:any){return x.id===id})[0];if(a)persist('agents',a.id,a)});
+  S.xe=null;render();
+  var b=[];if(r.added)b.push('added '+r.added);if(r.removed)b.push('removed '+r.removed);if(r.kept)b.push(r.kept+' kept because they have progress');
+  toast(prefix+(b.length?' · '+b.join(' · '):''));
 }
 function saveXe(){
-  var e=S.xe;if(!e)return;var f=e.f,E=clone(ext()),item=e.kind==='item';
+  var e=S.xe;if(!e)return;var f=e.f,E=clone(ext()),kind=e.kind,item=kind==='item',sh=kind==='shared';
   if(item&&!String(f.name).trim()){toast('Give it a name');return}
-  if(!item&&!String(f.text).trim()){toast('Write the rule');return}
-  var sc=f.scope;if(sc.mode==='project'&&!sc.projects.length||sc.mode==='team'&&!sc.teams.length||sc.mode==='people'&&!sc.people.length){toast('Choose who it applies to');return}
-  var o=item?{name:f.name.trim(),kind:f.kind,runtime:f.runtime,status:f.status,what:f.what.trim(),source:f.source.trim(),scope:sc}:{text:f.text.trim(),type:f.type,note:f.note.trim(),scope:sc};
-  var arr=item?E.items:E.rules;
-  if(e.id){for(var i=0;i<arr.length;i++)if(arr[i].id===e.id){o.id=e.id;if(!item)o.src=arr[i].src;arr[i]=o}}
-  else{o.id='x_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);arr.push(o)}
-  saveExt(E);S.xe=null;render();toast('Saved');
+  if(kind==='rule'&&!String(f.text).trim()){toast('Write the rule');return}
+  if(sh){var why=sharedInvalid(e.skind,f);if(why){toast(why);return}}
+  if(scopeEmpty(f.scope)){toast('Choose who it applies to');return}
+  var sc=toMix(scopeNorm(f.scope)),o:any;
+  if(item)o={name:f.name.trim(),kind:f.kind,runtime:f.runtime,status:f.status,what:f.what.trim(),source:f.source.trim(),scope:sc};
+  else if(sh){
+    o={kind:e.skind,scope:sc};var q=e.skind;
+    if(q==='todo'){o.text=f.text.trim();if(f.due)o.due=f.due}
+    else if(q==='goal'){o.text=f.text.trim();if(f.horizon.trim())o.horizon=f.horizon.trim();if(f.due)o.due=f.due}
+    else if(q==='kpi'){o.name=f.name.trim();o.target=f.target===''?null:Number(f.target);o.unit=f.unit.trim();o.cadence=f.cadence;o.dir=f.dir}
+    else if(q==='memory')o.text=f.text.trim();
+    else{o.title=f.title.trim();if(f.path.trim())o.path=f.path.trim()}
+  }
+  else o={text:f.text.trim(),type:f.type,note:f.note.trim(),scope:sc};
+  var arr=item?E.items:sh?E.shared:E.rules;
+  if(e.id){for(var i=0;i<arr.length;i++)if(arr[i].id===e.id){o.id=e.id;if(kind==='rule')o.src=arr[i].src;if(item)['body','contains','version'].forEach(function(k:any){if(arr[i][k]!==undefined)o[k]=arr[i][k]});arr[i]=o}}
+  else{o.id=(sh?'sh_':'x_')+Date.now().toString(36)+Math.random().toString(36).slice(2,5);arr.push(o)}
+  saveExt(E);
+  if(sh){applyShared(E,'Saved');return}
+  S.xe=null;render();toast('Saved');
+}
+function changeScopeFor(kind,itemId,ag,how){
+  var E=clone(ext()),arr=kind==='rule'?E.rules:kind==='shared'?E.shared:E.items,tm=teamIndex(),hit=false;
+  arr.forEach(function(x:any){if(x.id!==itemId)return;x.scope=(how==='give'?giveTo:removeFor)(x.scope,ag,tm);hit=true});
+  if(!hit)return;
+  saveExt(E);
+  var msg=(how==='give'?'Added for ':'Removed for ')+ag.name;
+  if(kind==='shared')applyShared(E,msg);else{render();toast(msg)}
+}
+function sharedAdd(){return '<!--ctl-->'+SHARED_KINDS.map(function(k:any){return '<button class="btn small'+(k[0]==='todo'?' primary':'')+'" data-act="x-new" data-kind="shared" data-skind="'+k[0]+'">Add '+(k[0]==='memory'?'a memory note':k[0]==='kpi'?'a KPI':'a '+k[1].toLowerCase())+'</button>'}).join('')+'<button class="btn small" data-act="shared-sync">Re-apply to everyone</button><!--/ctl-->'}
+function sharedCard(x:any){
+  var id=esc(x.id),n=countFor(x.scope),del=S.xdel===x.id,mat=materialises(x.kind),lab=sharedLabel(x);
+  var meta=x.kind==='kpi'?(x.target!=null?'Target '+fmtNum(x.target)+(x.unit?' '+x.unit:'')+' · ':'')+(x.cadence||''):x.due?'Due '+x.due:x.kind==='doc'&&x.path?x.path:x.horizon||'';
+  return '<div class="cd"><h3 style="font:600 15px/1.4 var(--sans)">'+esc(lab)+'</h3>'+(meta?'<p class="hint">'+esc(meta)+'</p>':'')
+   +'<p class="hint"><b>'+esc(scopeText(x.scope))+'</b> · '+n+' agent'+(n===1?'':'s')+' · '+(mat?'copied to each agent':'read when needed')+'</p>'
+   +'<div class="acts"><button class="btn small" data-act="x-edit" data-kind="shared" data-id="'+id+'">Change who gets it</button><button class="btn small danger" data-act="'+(del?'x-del-ok':'x-del')+'" data-kind="shared" data-id="'+id+'">'+(del?'Really remove?':'Remove')+'</button></div></div>';
+}
+function sharedView(){
+  var E=ext();
+  if(!E.shared.length)return '<div class="empty"><h3>No shared items yet</h3><p>A shared item is a todo, KPI, goal, memory note or document that goes to many agents at once: the whole organisation, a project, a team or named individuals. Todos, KPIs and goals are copied onto each agent so each one tracks its own progress. You can widen or narrow who gets one at any time, here or on a person\'s card.</p></div>';
+  var h='';
+  SHARED_KINDS.forEach(function(k:any){
+    var xs=E.shared.filter(function(x:any){return x.kind===k[0]});if(!xs.length)return;
+    h+='<div class="block" style="margin-bottom:16px"><h2>'+k[1]+(k[0]==='memory'?' notes':'s')+' · '+xs.length+'</h2><div class="gc">'+xs.map(sharedCard).join('')+'</div></div>';
+  });
+  return h;
+}
+function sharedLines(a:any){
+  var tm=teamIndex(),E=ext(),o:string[]=[],m=sharedFor(E.shared,a,tm,['memory']),d=sharedFor(E.shared,a,tm,['doc']);
+  if(m.length){o.push('Standing notes the founder shared with you:');m.forEach(function(x:any){o.push('- '+x.text)})}
+  if(d.length){o.push('Documents the founder wants you to read (a register, not proof they exist):');d.forEach(function(x:any){o.push('- '+x.title+(x.path?' ['+x.path+']':''))})}
+  return o;
+}
+function appliesBlock(a:any){
+  var E=ext(),tm=teamIndex(),id=esc(a.id),rows='',av:any[]=[],first=String(a.name||'this person').split(/[ (]/)[0];
+  function row(kind:string,x:any,label:string,tag:string){
+    if(!applies(x.scope,a,tm)){if(x.status!=='off')av.push([kind+':'+x.id,tag+': '+label]);return}
+    rows+='<li><span class="pill mute">'+esc(tag)+'</span><span class="grow">'+esc(label)+'</span><button class="linkbtn" data-act="x-reduce" data-kind="'+kind+'" data-id="'+esc(x.id)+'" data-agent="'+id+'" aria-label="Remove '+esc(label)+' for '+esc(first)+'">Remove for '+esc(first)+'</button></li>';
+  }
+  E.rules.forEach(function(r:any){row('rule',r,r.text,ruleLabel(r.type))});
+  E.items.forEach(function(x:any){row('item',x,x.name,kindLabel(x.kind))});
+  E.shared.forEach(function(x:any){row('shared',x,sharedLabel(x),(SHARED_KINDS.filter(function(k:any){return k[0]===x.kind})[0]||[0,'Shared'])[1])});
+  return '<!--ctl--><section class="pc-s ap"><h4>What applies to '+esc(first)+'</h4>'+(rows?'<ul class="ap-l">'+rows+'</ul>':'<p class="hint">Nothing has been assigned to this person.</p>')
+   +(av.length?'<div class="fld"><label for="gv-'+id+'">Give '+esc(first)+' something</label><select id="gv-'+id+'" data-give="'+id+'"><option value="">Choose a guardrail, skill, plugin or shared item</option>'+av.map(function(o:any){return '<option value="'+esc(o[0])+'">'+esc(o[1].length>90?o[1].slice(0,90)+'…':o[1])+'</option>'}).join('')+'</select></div>':'')
+   +'<p class="hint">Use Change who gets it on the Capabilities page to widen or narrow by project, team or organisation.</p></section><!--/ctl-->';
+}
+function pkgExtra(x:any,kind:string){
+  if(kind!=='item')return '';
+  var h='';
+  if(x.version)h+=' · version '+esc(x.version);
+  if(x.contains&&x.contains.length)h+='<p class="hint">Contains: '+esc(x.contains.join(' · '))+'</p>';
+  if(x.body)h+='<p class="hint"><button class="linkbtn" data-act="x-view" data-id="'+esc(x.id)+'">'+(S.xview[x.id]?'Hide the instructions':'View the saved instructions')+'</button></p>'+(S.xview[x.id]?'<pre class="pkg-body">'+esc(x.body)+'</pre>':'');
+  return h?'<!--ctl-->'+h+'<!--/ctl-->':'';
+}
+/* ---------- add from downloaded files ---------- */
+function pkgOpen(){
+  S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=null;S.edit=null;S.xe=null;S.modelsOpen=false;
+  S.imp={busy:false,error:'',cands:[],skipped:0,names:[],status:'wanted',runtime:'any',scope:{mode:'mix',all:false,projects:[],teams:[],people:[],except:[]}};render();
+}
+async function pkgRead(files:any){
+  var c=S.imp;if(!c)return;
+  var fl=[].slice.call(files).slice(0,PKG_LIMITS.files);
+  c.busy=true;c.error='';c.cands=[];c.skipped=0;c.names=fl.map(function(f:any){return f.name});render();
+  var all:any[]=[],E=ext();
+  for(var i=0;i<fl.length;i++){
+    try{
+      var up=await readUpload(fl[i].name,await fl[i].arrayBuffer());
+      if(up.error){c.error=fl[i].name+': '+up.error;continue}
+      c.skipped+=up.skipped;
+      scanPkg(up,fl[i].name).forEach(function(x:any){all.push(x)});
+    }catch(err){c.error=fl[i].name+' could not be read.'}
+  }
+  var seen:any={};
+  c.cands=all.filter(function(x:any){var k=x.kind+':'+x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true}).slice(0,200).map(function(x:any){
+    x.dup=E.items.some(function(y:any){return y.kind===x.kind&&String(y.name).toLowerCase()===x.name.toLowerCase()});x.on=!x.dup;return x});
+  c.busy=false;if(S.imp===c)render();
+}
+function impHTML(){
+  var c=S.imp;if(!c)return '';
+  var n=c.cands.filter(function(x:any){return x.on}).length;
+  var h='<div class="scrim" data-act="pkg-close"></div><aside class="panel" role="dialog" aria-label="Add from downloaded files"><div class="panel-head"><div><h2>Add from downloaded files</h2><p class="role">Skills, plugins and connectors</p></div><div class="btns"><button class="btn small primary" data-act="pkg-add"'+(n?'':' disabled')+'>Add '+n+'</button><button class="btn small" data-act="pkg-close">Cancel</button></div></div><div class="panel-body">';
+  h+='<div class="fld"><label for="pkg-file">Choose the files you downloaded</label><input type="file" id="pkg-file" data-pkg multiple accept=".zip,.skill,.md,.json,.txt"><span class="hint">A .zip or .skill package, or a SKILL.md, plugin.json, marketplace.json or .mcp.json. Files are read in your browser and are never run. Only add files you trust: agents are told each one\'s name and description.</span></div>';
+  if(c.busy)h+='<p class="hint">Reading…</p>';
+  if(c.error)h+='<div class="err">'+esc(c.error)+'</div>';
+  if(c.cands.length){
+    h+='<div class="sec"><h3>Found '+c.cands.length+'</h3>'+c.cands.map(function(x:any,i:number){
+      return '<label class="pkgc"><input type="checkbox" data-pkgsel="'+i+'"'+(x.on?' checked':'')+'><span class="pkgc-b"><span><span class="pill mute">'+esc(kindLabel(x.kind))+'</span> <b>'+esc(x.name)+'</b>'+(x.version?' <small class="hint">v'+esc(x.version)+'</small>':'')+(x.dup?' <span class="pill warn">Already registered</span>':'')+'</span>'
+       +(x.what?'<span class="hint">'+esc(x.what)+'</span>':'')+(x.contains&&x.contains.length?'<span class="hint">Contains: '+esc(x.contains.join(' · '))+'</span>':'')+'<span class="hint">From '+esc(x.source)+(x.path&&x.path!==x.source?' · '+esc(x.path):'')+'</span></span></label>';
+    }).join('')+'</div>';
+    h+='<div class="fld"><label for="pkg-status">Status to record</label><select id="pkg-status" data-pkgf="status"><option value="wanted"'+(c.status==='wanted'?' selected':'')+'>Wanted (not set up yet)</option><option value="installed"'+(c.status==='installed'?' selected':'')+'>Installed (I have set it up)</option></select></div>'
+     +'<div class="fld"><label for="pkg-runtime">Runs on</label><select id="pkg-runtime" data-pkgf="runtime"><option value="any">Any model</option>'+modelList().map(function(m:any){return '<option value="'+esc(m.id)+'"'+(c.runtime===m.id?' selected':'')+'>'+esc(m.name)+'</option>'}).join('')+'</select></div>'
+     +scopeEditorHTML(c.scope,'imp')
+     +'<p class="hint">This adds them to the register and says who gets them. It does not install anything into an agent\'s own tools; to do that, put the files in the repo\'s skills or plugins folder.</p>';
+  }else if(!c.busy&&!c.error&&c.names.length)h+='<p class="hint">No skills, plugins or connectors were found in '+esc(c.names.join(', '))+(c.skipped?'. '+c.skipped+' other files were skipped.':'.')+'</p>';
+  return h+'</div></aside>';
+}
+function pkgAdd(){
+  var c=S.imp;if(!c)return;
+  var picked=c.cands.filter(function(x:any){return x.on});if(!picked.length)return;
+  if(scopeEmpty(c.scope)){toast('Choose who they apply to');return}
+  var E=clone(ext()),sc=toMix(scopeNorm(c.scope));
+  picked.forEach(function(x:any,i:number){
+    var o:any={id:'x_'+Date.now().toString(36)+i+Math.random().toString(36).slice(2,4),name:x.name,kind:x.kind,runtime:c.runtime,status:c.status,what:x.what||'',source:x.source+(x.path&&x.path!==x.source?' · '+x.path:''),scope:sc};
+    if(x.body)o.body=x.body;if(x.contains&&x.contains.length)o.contains=x.contains;if(x.version)o.version=x.version;
+    E.items.push(o);
+  });
+  saveExt(E);S.imp=null;S.capTab='catalog';render();toast('Added '+picked.length+' to the register');
 }
 function looksSecret(v){v=String(v||'');return /^(sk|pk|rk|ghp|gho|ghs|github_pat|xox[a-z]|AIza|hf|gsk)[-_]/i.test(v)||/^[A-Za-z0-9_\-]{32,}$/.test(v)}
 var BILL=[['','Not set'],['sub','Subscription login (no key)'],['free','Free tier'],['pay','Pay per use (needs a key)']];
@@ -1436,7 +1613,7 @@ function modelsHTML(){
   h+='<section class="sec"><h3>Add a model</h3><div class="fld"><label for="mnew-name">Name</label><input type="text" id="mnew-name" placeholder="For example Qwen"></div><div class="fld"><label for="mnew-vendor">Vendor</label><input type="text" id="mnew-vendor"></div><div class="fld"><label for="mnew-note">Note</label><input type="text" id="mnew-note" placeholder="How it is reached, for example through a Codex CLI"></div><div><button class="btn primary" data-act="model-add">Add model</button></div><span class="hint">New models start as not connected. Tick Connected once it really is.</span></section></div></aside>';
   return h;
 }
-function guardLines(a: any): string[] { return guardLines0(a).concat(stateLines(a)) }
+function guardLines(a: any): string[] { return guardLines0(a).concat(stateLines(a),sharedLines(a)) }
 function guardLines0(a: any): string[] { var g=appliedTo(a),o: string[]=[]; if(a.progress&&S.report&&S.report.facts)o.push('Team-wide facts: '+S.report.facts.join(' | ')); if(g.rules.length){o.push('Guardrails the founder set for you (follow them strictly):');g.rules.forEach(function(r: any){o.push('- '+ruleLabel(r.type)+': '+r.text)})} if(g.items.length){o.push('Skills, plugins and tools assigned to you on the Capabilities page (a register, not proof they are installed):');g.items.forEach(function(x: any){o.push('- '+x.name+' ('+kindLabel(x.kind)+', '+x.status+')'+(x.what?': '+x.what:''))})} return o }
 
 setInterval(function(){
