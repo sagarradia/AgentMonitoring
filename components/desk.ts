@@ -14,9 +14,12 @@ import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefault
 import { createDb, createSample, createDownloads, listRepos, loadConfig, type DB as DBT, type Sample, type Downloads } from '@/lib/client/runtime';
 import type { Repo } from '@/lib/types';
 
-/* GitHub snapshot taken 11 Oct 2026. "Sync from GitHub" replaces it. */
+/* GitHub snapshot taken 3 Nov 2026. "Sync from GitHub" replaces it. */
 export const DEFAULT_REPOS: Repo[] = [
- {full_name:'Skybirds-Empyrean-Avenue/familyvault',url:'https://github.com/Skybirds-Empyrean-Avenue/familyvault',pushed_at:'2026-10-11T07:12:13Z',visibility:'private'},
+ {full_name:'Skybirds-Empyrean-Avenue/familyvault',url:'https://github.com/Skybirds-Empyrean-Avenue/familyvault',pushed_at:'2026-10-16T19:45:18Z',visibility:'private'},
+ {full_name:'sagarradia/AgentMonitoring',url:'https://github.com/sagarradia/AgentMonitoring',pushed_at:'2026-11-03T09:13:45Z',visibility:'public'},
+ {full_name:'sagarradia/agent-evals',url:'https://github.com/sagarradia/agent-evals',pushed_at:'2026-11-03T06:32:22Z',visibility:'private'},
+ {full_name:'sagarradia/agent-desk',url:'https://github.com/sagarradia/agent-desk',pushed_at:'2026-10-11T11:40:28Z',visibility:'private'},
  {full_name:'sagarradia/ensyncro',url:'https://github.com/sagarradia/ensyncro',pushed_at:'2026-08-02T17:49:51Z',visibility:'public'},
  {full_name:'sagarradia/pocketfund.in',url:'https://github.com/sagarradia/pocketfund.in',pushed_at:'2026-07-27T18:54:32Z',visibility:'private'},
  {full_name:'sagarradia/MarketingSite_Mock',url:'https://github.com/sagarradia/MarketingSite_Mock',pushed_at:'2026-07-21T09:50:19Z',visibility:'public'},
@@ -88,7 +91,7 @@ function railHTML(){
   });
   h+='</nav><div class="rail-foot">';
   if(MCP)h+='<button class="btn small" data-act="sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing…':'Sync from GitHub')+'</button>';
-  h+='<span>'+(S.syncedAt?'Synced '+esc(fmtDate(S.syncedAt)):'GitHub snapshot, 11 Oct 2026')+'</span></div></aside>';
+  h+='<span>'+(S.syncedAt?'Synced '+esc(fmtDate(S.syncedAt)):'GitHub snapshot, 3 Nov 2026')+'</span></div></aside>';
   return h;
 }
 function topHTML(repo){
