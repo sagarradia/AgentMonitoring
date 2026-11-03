@@ -36,7 +36,7 @@ export function count<T>(a: Agent, key: 'goals' | 'todos' | 'kpis', pred: (x: T)
   return ((a[key] as T[] | undefined) || []).filter(pred).length;
 }
 export function statusLabel(s: string | undefined): string {
-  return ({ active: 'Active', paused: 'Paused', draft: 'Draft' } as Record<string, string>)[s || ''] || 'Active';
+  return ({ active: 'Active', paused: 'Paused', draft: 'Draft', resting: 'Resting', revoked: 'Revoked', withdrawn: 'Withdrawn' } as Record<string, string>)[s || ''] || 'Active';
 }
 export function fmtNum(n: unknown): string { return n == null || n === '' ? '' : Number(n).toLocaleString() }
 export function kpiPct(k: Kpi): number | null {

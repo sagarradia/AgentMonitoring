@@ -135,3 +135,6 @@ database, connect a separate Neon branch to the Preview environment.
 - Pages send `X-Robots-Tag: noindex` and `robots.txt` disallows everything.
 - The agent prompt keeps the original honesty rules: the agent has no run logs, so its reasons are
   a reading of the records, not a report of what happened.
+
+## Agent controls and the Live tab (November 2026)
+Every agent can be activated, paused, rested (with a timer that ends by itself), revoked or withdrawn, one at a time or by team. An agent can have a backup; when a Chief of Staff is away, the backup is named in a banner and told in chat that it is covering. The Live tab shows an overall bar, a bar per team and per agent, and a bar per ticket with its state (running, queued, paused, waiting, done). A bar only shows a percentage someone recorded; running tickets with none show a moving stripe. These controls record the founder's decision on this page and in each agent's chat; they do not stop a scheduled run elsewhere.

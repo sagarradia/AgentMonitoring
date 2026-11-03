@@ -7,6 +7,7 @@ import {
   isBlocked, lateCount, routineLate, libCount, attention, nextDue, sortAg, buildTree,
   repoById as repoByIdIn, shortName as shortNameIn, fullName as fullNameIn,
 } from '@/lib/model';
+import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, taskState, taskPct, roll, isLead, coverFor, suggestBackup, STATE_LABEL, STATE_HELP, REST_CHOICES } from '@/lib/status';
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
@@ -33,7 +34,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -124,8 +125,8 @@ function statsHTML(list:any){
 }
 function tabsHTML(list){
   var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
-  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['overview','Overview',''],['tracker','Tracker',''],['people','Directory',list.length],['report','Status report',list.length],['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb],['caps','Capabilities',ext().items.length+ext().rules.length],['connect','Connections',modelList().length]];
-  return '<div class="tabs" role="tablist">'+t.map(function(x){return '<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(S.tab===x[0])+'">'+x[1]+(x[2]!==''?'<em>'+x[2]+'</em>':'')+'</button>'}).join('')+'</div>';
+  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['overview','Overview',''],['tracker','Tracker',''],['live','Live',''],['people','Directory',list.length],['report','Status report',list.length],['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb],['caps','Capabilities',ext().items.length+ext().rules.length],['connect','Connections',modelList().length]];
+  return '<div class="tabs" role="tablist">'+t.map(function(x){return (x[0]==='live'?'<!--ctl-->':'')+'<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(S.tab===x[0])+'">'+x[1]+(x[2]!==''?'<em>'+x[2]+'</em>':'')+'</button>'+(x[0]==='live'?'<!--/ctl-->':'')}).join('')+'</div>';
 }
 function emptyHTML(){
   var scoped=S.scope!=='all';
@@ -148,7 +149,7 @@ function agentRow(a,d,rn,nKids,open){
   return '<tr class="r-agent'+(late?' hot':'')+'"><td class="rn">'+rn+'</td>'
    +'<td class="name" style="padding-left:'+(8+d*20)+'px"><button class="caret" data-act="toggle" data-id="'+id+'" aria-expanded="'+open+'" aria-label="'+(open?'Collapse ':'Expand ')+esc(a.name)+'">'+(open?'▾':'▸')+'</button><button class="nm" data-act="toggle" data-id="'+id+'">'+esc(a.name)+'</button>'+(a.example?' <span class="tag">Example</span>':'')+(nKids?' <span class="cnt">'+nKids+' report'+(nKids>1?'s':'')+'</span>':'')+'</td>'
    +'<td class="kind">'+esc(a.level||'Agent')+'</td>'
-   +'<td><select class="cell" id="ast-'+id+'" data-status="'+id+'" aria-label="Status of '+esc(a.name)+'">'+['active','paused','draft'].map(function(s){return '<option value="'+s+'"'+((a.status||'active')===s?' selected':'')+'>'+statusLabel(s)+'</option>'}).join('')+'</select></td>'
+   +'<td><select class="cell" id="ast-'+id+'" data-status="'+id+'" aria-label="Status of '+esc(a.name)+'">'+statusOpts(a)+'</select></td>'
    +'<td class="mono'+(nd&&nd<today()?' bad':'')+'">'+(nd||'—')+'</td>'
    +'<td class="mono">'+gd+'/'+gt+'</td>'
    +'<td class="mono">'+td+'/'+tt+(late?' <span class="bad">'+late+' late</span>':'')+'</td>'
@@ -220,8 +221,8 @@ function scoreView(list){return vsw('score','Cards')+(isSheet('score')?scoreShee
 function libView(list){return vsw('lib','Cards')+(isSheet('lib')?libSheet(list):libCards(list))}
 function shellHTML(){
   var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
-  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
-   +'<section>'+(S.tab==='overview'?overviewView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
+  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
+   +'<section>'+coverBanner()+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
 }
 
 var LSPEC: any = {
@@ -255,8 +256,9 @@ function panelHTML(){
   var h='<div class="scrim" data-act="close-panel"></div><aside class="panel" role="dialog" aria-label="Agent profile">';
   h+='<div class="panel-head"><div><h2>'+esc(a.name)+(a.example?' <span class="tag">Example</span>':'')+'</h2><p class="role">'+esc(a.role)+'</p></div><div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button><button class="btn small" data-act="close-panel">Close</button></div></div><div class="panel-body">';
   h+='<div class="facts"><div><span>Project</span><b>'+esc(fullName(a.projectId))+'</b></div><div><span>Reports to</span><b>'+esc(a.reportsTo||'—')+'</b></div>'+(modelOf(a).now?'<div><span>Model</span><b>'+esc(modelOf(a).now)+' now · planned '+esc(modelOf(a).prop)+'</b></div>':'')
-   +'<div><span>Status</span><select id="st-'+id+'" data-status="'+id+'" aria-label="Status">'+['active','paused','draft'].map(function(s){return '<option value="'+s+'"'+((a.status||'active')===s?' selected':'')+'>'+statusLabel(s)+'</option>'}).join('')+'</select></div>'
+   +'<div><span>Status</span><select id="st-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Created</span><b>'+esc(fmtDate(a.createdAt)||'—')+(a.source==='claude'?' · drafted by Claude':a.source==='template'?' · from template':a.source==='repo'?' · imported from role file':'')+'</b></div></div>';
+  h+=ctlBlock(a);
   if(a.progress){var g=a.progress;h+='<section class="sec"><h3>Progress · '+esc(g.asOf)+'</h3><p>'+(g.assigned?g.done+' of '+g.assigned+' tickets done ('+g.pct+'%), '+g.open+' open. ':'No tickets of its own. ')+(g.lastActive?'Last active '+esc(g.lastActive)+(g.idleDays!=null?' ('+g.idleDays+' days ago).':'.'):'No recorded activity.')+'</p><ul class="plain">'+(g.reasons||[]).map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></section>'}
   h+='<section class="sec"><h3>Job description</h3><p>'+esc(a.purpose||'')+'</p>'
    +((a.task)?'<p class="hint">Task given: '+esc(a.task)+'</p>':'')
@@ -382,7 +384,7 @@ function render(){
   var sw=app.querySelector('.sheetwrap'),sl=sw?sw.scrollLeft:0,stp=sw?sw.scrollTop:0;
   var ms=document.scrollingElement?document.scrollingElement.scrollTop:0;
   app.innerHTML=shellHTML();
-  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML();
+  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML();
   var pb2=overlay.querySelector('.panel-body');if(pb2)pb2.scrollTop=pt;
   var mb2=overlay.querySelector('.modal-body');if(mb2)mb2.scrollTop=mt;
   var lg2=document.getElementById('chat-log');
@@ -558,6 +560,12 @@ document.addEventListener('click',function(e){
   else if(act==='dircsv')exportDirCSV();
   else if(act==='edit-open'){var ea=S.agents.filter(function(x){return x.id===id})[0];if(ea){S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=null;S.modelsOpen=false;S.edit={id:id,f:editFields(ea)};render()}}
   else if(act==='edit-close'){S.edit=null;render()}
+  else if(act==='st'){var sst=el.dataset.st;if(sst==='active'||sst==='paused'){setStates([id],sst,{});render();toast(STATE_LABEL[sst])}else openCtl([id],sst)}
+  else if(act==='st-bulk'){var bids=String(el.dataset.ids||'').split(',').filter(Boolean);if(bids.length)openCtl(bids,el.dataset.st)}
+  else if(act==='ctl-close'){S.ctl=null;render()}
+  else if(act==='ctl-ok')ctlApply();
+  else if(act==='use-backup'){mutate(id,function(a){a.backupId=el.dataset.bk});toast('Backup saved')}
+  else if(act==='live-toggle'){S.liveOpen[id]=!S.liveOpen[id];render()}
   else if(act==='edit-save')saveEdit();
   else if(act==='models-open'){S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.openAgent=null;S.edit=null;S.modelsOpen=true;render()}
   else if(act==='models-close'){S.modelsOpen=false;render()}
@@ -641,6 +649,8 @@ document.addEventListener('input',function(e){
   if(t.dataset.q!==undefined){S.q=t.value;render()}
   else if(t.dataset.chat!==undefined&&S.chat){S.chat.draft=t.value}
   else if(t.dataset.ef&&S.edit){S.edit.f[t.dataset.ef]=t.value}
+  else if(t.dataset.ctl==='custom'&&S.ctl){S.ctl.custom=t.value}
+  else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
   else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
   else if(t.dataset.wf&&S.wizard&&S.wizard.fields){S.wizard.fields[t.dataset.wf]=t.value}
@@ -675,7 +685,14 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
-  else if(t.dataset.status){var sv=t.value;mutate(t.dataset.status,function(a){a.status=sv})}
+  else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
+  else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
+  else if(t.dataset.ctlBackup){var bv=t.value;mutate(t.dataset.ctlBackup,function(a){if(bv)a.backupId=bv;else delete a.backupId})}
+  else if(t.dataset.tpct){
+    var pp=t.dataset.tpct.split('|'),pv=t.value===''?null:Math.max(0,Math.min(99,Math.round(Number(t.value))));
+    mutate(pp[0],function(a){var tt=(a.todos||[])[Number(pp[1])];if(!tt)return;a.todos=a.todos.slice();tt=a.todos[Number(pp[1])]=Object.assign({},tt);if(pv==null||isNaN(pv))delete tt.pct;else{tt.pct=pv;if(tt.status==='todo')tt.status='doing'}tt.updatedAt=Date.now()});
+  }
+  else if(t.dataset.status){var sv=t.value,sid=t.dataset.status;if(sv==='resting'||sv==='revoked'||sv==='withdrawn')openCtl([sid],sv);else{setStates([sid],sv,{});render()}}
   else if(t.dataset.set){
     var kind=t.dataset.set,f=t.dataset.f,i=Number(t.dataset.i),v=t.type==='checkbox'?t.checked:t.value;
     if(f==='current'||f==='target'){v=v===''?null:Number(v);if(v!==null&&!isFinite(v))v=null}
@@ -836,10 +853,11 @@ function personCard(a,team){
   var id=esc(a.id),g=a.progress;
   var h='<div class="pc-head"><span class="av lg">'+esc(initials(a.name))+'</span><div class="grow"><h3>'+esc(a.name)+'</h3><p class="hint">'+esc(a.role||'')+'</p><p class="hint">'+esc(team)+(a.reportsTo?' · reports to '+esc(a.reportsTo):'')+'</p></div>'
    +'<div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small" data-act="open-agent" data-id="'+id+'">Full profile</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button></div></div>';
-  h+='<div class="pc-facts"><div><span>Status</span><select class="cell" id="pcs-'+id+'" data-status="'+id+'" aria-label="Status">'+['active','paused','draft'].map(function(o){return '<option value="'+o+'"'+((a.status||'active')===o?' selected':'')+'>'+statusLabel(o)+'</option>'}).join('')+'</select></div>'
+  h+='<div class="pc-facts"><div><span>Status</span><select class="cell" id="pcs-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Model now</span>'+modelSel(a,'now')+'</div><div><span>Model planned</span>'+modelSel(a,'prop')+'</div>'
    +'<div><span>Work done</span><b>'+(g&&g.pct!=null?g.pct+'% ('+g.done+' of '+g.assigned+')':'No tickets of its own')+'</b></div>'
    +'<div><span>Last active</span><b>'+(g&&g.lastActive?esc(g.lastActive)+(g.idleDays!=null?' · '+g.idleDays+' days ago':''):'No record')+'</b></div></div>';
+  h+=ctlBlock(a);
   if(a.purpose)h+=pcSec('Mission','<p>'+esc(a.purpose)+'</p>');
   if(g&&(g.reasons||[]).length)h+=pcSec('Why work is pending',ulN(g.reasons));
   h+='<div class="pc-cols">'+pcSec('Responsibilities',ulN(a.responsibilities))+'<div style="display:flex;flex-direction:column;gap:18px">'+pcSec('May',ulN(a.may))+pcSec('Must not',ulN(a.mustNot))+'</div></div>';
@@ -875,6 +893,160 @@ function closedOn(t){var m=/Closed (\d{4}-\d{2}-\d{2})/.exec(t.note||'');return 
 function dayDiff(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/864e5)}
 function addDays(s0,n){var d=new Date(s0+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fmtShort(s0){return new Date(s0+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'})}
+/* ---------- agent controls and live status ---------- */
+function stOpt(a,x){return '<option value="'+x+'"'+((a.status||'active')===x?' selected':'')+'>'+statusLabel(x)+'</option>'}
+function statusOpts(a){return ['active','paused','draft'].map(function(x){return stOpt(a,x)}).join('')+'<!--ctl-->'+['resting','revoked','withdrawn'].map(function(x){return stOpt(a,x)}).join('')+'<!--/ctl-->'}
+function clock(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+function stChip(a){var x=effState(a);return '<span class="stc st-'+x+'">'+esc(STATE_LABEL[x])+(x==='resting'?' · back in '+esc(restLeft(a)):'')+'</span>'}
+function stateLines(a){
+  var o=[],x=effState(a);
+  if(x!=='active')o.push('Your status, set by the founder on this page: '+STATE_LABEL[x]+(x==='resting'?' until '+clock(a.restUntil):'')+'. '+STATE_HELP[x]);
+  S.agents.forEach(function(b){
+    if(b.id===a.id||isAvailable(b)||effState(b)==='draft')return;
+    var c=coverFor(b,S.agents);
+    if(c.by&&c.by.id===a.id)o.push('You are covering for '+b.name+' ('+STATE_LABEL[effState(b)]+'). Do their duties as far as your own role and limits allow, and say you are covering.');
+  });
+  return o;
+}
+function ctlButtons(a){
+  var id=esc(a.id),x=effState(a),h='';
+  function b(st,label,cls){return '<button class="btn small'+(cls?' '+cls:'')+'" data-act="st" data-st="'+st+'" data-id="'+id+'">'+label+'</button>'}
+  if(x!=='active'&&x!=='draft')h+=b('active',x==='resting'?'End rest now':'Activate','primary');
+  if(x==='active'||x==='draft')h+=b('paused','Pause');
+  if(x==='active'||x==='draft'||x==='paused')h+=b('resting','Rest…');
+  if(x!=='revoked'&&x!=='withdrawn')h+=b('revoked','Revoke…');
+  if(x!=='withdrawn')h+=b('withdrawn','Withdraw…');
+  return '<div class="ctlbtns">'+h+'</div>';
+}
+function backupChoices(a,skip){
+  var skipIds=skip||[];
+  return S.agents.filter(function(x){return x.id!==a.id&&x.projectId===a.projectId&&skipIds.indexOf(x.id)<0&&effState(x)!=='withdrawn'&&effState(x)!=='revoked'});
+}
+function backupOpts(a,cur){return '<option value="">No backup</option>'+backupChoices(a).map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===cur?' selected':'')+'>'+esc(x.name)+'</option>'}).join('')}
+function ctlBlock(a){
+  var x=effState(a),id=esc(a.id),h='<!--ctl--><div class="ctl"><div class="ctl-top">'+stChip(a)+'<span class="hint">'+esc(STATE_HELP[x])+(a.statusNote?' Note: '+esc(a.statusNote):'')+'</span></div>'+ctlButtons(a);
+  var away=x!=='active'&&x!=='draft',cov=away?coverFor(a,S.agents):null,sug=suggestBackup(a,S.agents),extra='';
+  if(cov&&cov.by)extra='<span class="hint">'+esc(cov.by.name)+' is covering.</span>';
+  else if(away)extra='<span class="hint bad">Nobody is covering'+(isLead(a)?': the daily loop is not running':'')+'.</span>';
+  if(!a.backupId&&sug&&(isLead(a)||away))extra+=' <button class="btn small" data-act="use-backup" data-id="'+id+'" data-bk="'+esc(sug.id)+'">Use '+esc(sug.name)+' as backup</button>';
+  h+='<div class="fld ctl-bk"><label for="bk-'+id+'">Backup when away</label><select id="bk-'+id+'" data-ctl-backup="'+id+'">'+backupOpts(a,a.backupId)+'</select>'+extra+'</div></div><!--/ctl-->';
+  return h;
+}
+function coverBanner(){
+  var out='';
+  S.agents.forEach(function(a){
+    var x=effState(a);
+    if(!isLead(a)||x==='active'||x==='draft')return;
+    var c=coverFor(a,S.agents),sug=suggestBackup(a,S.agents),when=x==='resting'?' until '+clock(a.restUntil)+' (back in '+restLeft(a)+')':'';
+    out+='<div class="ctl-alert '+(c.by?'ok':'bad')+'"><div><b>'+esc(a.name)+' is '+STATE_LABEL[x].toLowerCase()+esc(when)+'.</b> '
+      +(c.by?esc(c.by.name)+' is covering the daily loop until then.':'Nobody is covering, so the daily loop is not running.')+'</div><div class="ctlbtns">'
+      +(c.by?'':(sug&&!a.backupId?'<button class="btn small" data-act="use-backup" data-id="'+esc(a.id)+'" data-bk="'+esc(sug.id)+'">Use '+esc(sug.name)+' as backup</button>':''))
+      +'<button class="btn small primary" data-act="st" data-st="active" data-id="'+esc(a.id)+'">'+(x==='resting'?'End rest now':'Activate')+'</button></div></div>';
+  });
+  return out?'<!--ctl-->'+out+'<!--/ctl-->':'';
+}
+function setStates(ids,status,o){
+  o=o||{};var now=Date.now();
+  ids.forEach(function(id){
+    var a=S.agents.filter(function(x){return x.id===id})[0];if(!a)return;
+    a.status=status;
+    if(status==='resting')a.restUntil=restUntilFor(o.hours,now);else delete a.restUntil;
+    a.statusNote=status==='active'?'':String(o.note||'').trim();
+    if(!a.statusNote)delete a.statusNote;
+    logStatus(a,status,a.statusNote||'',now);
+    if(o.bk&&o.bk[id]!==undefined){if(o.bk[id])a.backupId=o.bk[id];else delete a.backupId}
+    persist('agents',a.id,a);
+  });
+}
+function openCtl(ids,status){
+  var c={ids:ids,status:status,hours:1,custom:'',note:'',bk:{}};
+  ids.forEach(function(id){
+    var a=S.agents.filter(function(x){return x.id===id})[0];if(!a||!isLead(a))return;
+    var sg=suggestBackup(a,S.agents);c.bk[id]=a.backupId||(sg&&ids.indexOf(sg.id)<0?sg.id:'');
+  });
+  S.ctl=c;S.chat&&S.chat.ctl&&S.chat.ctl.abort();render();
+}
+var CTL_TITLE={paused:'Pause',resting:'Rest',revoked:'Revoke access for',withdrawn:'Withdraw',active:'Activate'};
+var CTL_OK={paused:'Pause',resting:'Start rest',revoked:'Revoke access',withdrawn:'Withdraw',active:'Activate'};
+function ctlHTML(){
+  var c=S.ctl;if(!c)return '';
+  var ags=c.ids.map(function(id){return S.agents.filter(function(x){return x.id===id})[0]}).filter(Boolean);
+  if(!ags.length)return '';
+  var name=ags.length===1?ags[0].name:ags.length+' agents',st=c.status;
+  var h='<div class="scrim" data-act="ctl-close"></div><div class="modal" role="dialog" aria-label="'+esc(CTL_TITLE[st]+' '+name)+'"><div class="modal-head"><h2>'+esc(CTL_TITLE[st]+' '+name)+'</h2><p>'+esc(STATE_HELP[st])+'</p></div><div class="modal-body">';
+  if(st==='resting'){
+    h+='<div class="fld"><span class="lbl">How long should the rest be? It ends by itself and the agent goes back to Active.</span><div class="rest-opts">'
+     +REST_CHOICES.map(function(r){return '<label class="rest-opt"><input type="radio" name="rest" data-ctl="hours" value="'+r[0]+'"'+(!c.custom&&Number(c.hours)===r[0]?' checked':'')+'> '+r[1]+'</label>'}).join('')+'</div>'
+     +'<label class="rest-other" for="ctl-custom">Or a number of hours: <input type="number" id="ctl-custom" min="0.25" max="336" step="0.25" data-ctl="custom" value="'+esc(c.custom)+'" style="width:90px"></label></div>';
+  }
+  ags.filter(isLead).forEach(function(a){
+    if(st==='active')return;
+    var rest=c.ids,cur=c.bk[a.id]||'';
+    h+='<div class="fld"><label for="ctl-bk-'+esc(a.id)+'">Who covers for '+esc(a.name)+' while away?</label><select id="ctl-bk-'+esc(a.id)+'" data-ctl-bk="'+esc(a.id)+'"><option value="">Nobody</option>'
+     +backupChoices(a,rest).map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===cur?' selected':'')+'>'+esc(x.name)+(isAvailable(x)?'':' ('+STATE_LABEL[effState(x)]+')')+'</option>'}).join('')+'</select>'
+     +(cur?'':'<span class="hint bad">With nobody covering, the daily loop stops until '+esc(a.name)+' is back.</span>')+'</div>';
+  });
+  if(st!=='active')h+='<div class="fld"><label for="ctl-note">Reason (optional)</label><textarea id="ctl-note" rows="2" data-ctl="note" placeholder="For example: waiting for my review">'+esc(c.note)+'</textarea></div>';
+  h+='<p class="hint">This records your decision on this page and tells the agent in chat. It does not switch off a scheduled run that lives somewhere else; pause that where it is set up.</p></div>'
+   +'<div class="modal-foot"><button class="btn" data-act="ctl-close">Cancel</button><button class="btn primary" data-act="ctl-ok">'+esc(CTL_OK[st])+'</button></div></div>';
+  return h;
+}
+function ctlApply(){
+  var c=S.ctl;if(!c)return;
+  var hrs=c.status==='resting'?(Number(c.custom)>0?Number(c.custom):Number(c.hours)):0;
+  if(c.status==='resting'&&!(hrs>0)){toast('Choose or enter a rest time');return}
+  var n=c.ids.length;
+  setStates(c.ids,c.status,{hours:hrs,note:c.note,bk:c.bk});
+  S.ctl=null;render();
+  toast((c.status==='resting'?'Resting for '+(hrs<1?Math.round(hrs*60)+' minutes':hrs+(hrs===1?' hour':' hours')):STATE_LABEL[c.status])+(n>1?' · '+n+' agents':''));
+}
+function pbar(state,p,lg){
+  var inner=(state==='running'&&p==null)?'<i class="ind"></i>':'<i style="width:'+(p||0)+'%"></i>';
+  return '<div class="pbar s-'+state+(lg?' lg':'')+'" role="progressbar" aria-valuemin="0" aria-valuemax="100"'+(p==null?'':' aria-valuenow="'+p+'"')+' aria-label="'+(p==null?'In progress, no percentage recorded':p+' percent')+'">'+inner+'</div>';
+}
+var TS_LABEL={running:'Running',queued:'Queued',paused:'Paused',waiting:'Waiting',done:'Done'};
+function rollText(r){
+  var b=[];['running','queued','paused','waiting'].forEach(function(k){if(r[k])b.push(r[k]+' '+k)});
+  return r.done+' of '+r.n+' done'+(b.length?' · '+b.join(' · '):'');
+}
+function taskRow(x){
+  var t=x.t,a=x.a,s=taskState(t,a),p=taskPct(t,s),id=esc(a.id);
+  var why=s==='paused'?'Agent is '+STATE_LABEL[effState(a)].toLowerCase():(s==='waiting'||s==='queued')&&t.note?t.note:'';
+  return '<div class="lv-task"><div class="lv-tt"><span class="lv-text">'+esc(t.text)+'</span><span class="stc ts-'+s+'">'+TS_LABEL[s]+'</span></div>'+pbar(s,p)
+   +'<div class="lv-meta"><span>'+(p==null?(s==='paused'?'Paused, no percentage recorded':'In progress, no percentage recorded'):p+'% complete')+(why?' · '+esc(why):'')+'</span>'
+   +(s==='done'?'':'<label class="lv-set">Set progress <input type="number" min="0" max="99" data-tpct="'+id+'|'+x.i+'" value="'+(t.pct==null?'':esc(t.pct))+'" aria-label="Progress percent for '+esc(t.text)+'"> %</label>')+'</div></div>';
+}
+function liveAgent(a,T){
+  var id=esc(a.id),x=effState(a),items=(a.todos||[]).map(function(t,i){return {a:a,t:t,i:i}}),r=roll(items);
+  var h='<div class="lv-agent"><div class="lv-ah"><div class="grow"><b>'+esc(a.name)+'</b> '+stChip(a)+'<span class="hint"> '+esc(a.role||'')+'</span></div>'+ctlButtons(a)+'</div>';
+  if(x==='withdrawn'){return h+'<span class="hint">Off the team. Its '+items.length+' ticket'+(items.length===1?'':'s')+' are not counted.</span></div>'}
+  if(!items.length)return h+'<span class="hint">No tickets assigned.</span></div>';
+  var shown=S.liveOpen[a.id]?items:items.filter(function(y){var s=taskState(y.t,a);return s==='running'||s==='paused'}).slice(0,6);
+  h+=pbar(r.running?'running':r.paused?'paused':'queued',r.pct)+'<div class="lv-meta"><span><b>'+r.pct+'%</b> overall · '+esc(rollText(r))+'</span><button class="linkbtn" data-act="live-toggle" data-id="'+id+'">'+(S.liveOpen[a.id]?'Show only active tickets':'Show all '+items.length+' tickets')+'</button></div>';
+  h+=shown.length?'<div class="lv-tasks">'+shown.map(taskRow).join('')+'</div>':'<p class="hint">Nothing running right now.</p>';
+  return h+'</div>';
+}
+function bulkBtns(ids,label){
+  var s=ids.join(',');
+  return '<div class="ctlbtns"><button class="btn small" data-act="st-bulk" data-st="active" data-ids="'+esc(s)+'">Activate '+label+'</button><button class="btn small" data-act="st-bulk" data-st="paused" data-ids="'+esc(s)+'">Pause '+label+'</button><button class="btn small" data-act="st-bulk" data-st="resting" data-ids="'+esc(s)+'">Rest '+label+'…</button></div>';
+}
+function liveView(list){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!list.length)return emptyHTML();
+  var all=[];list.forEach(function(a){(a.todos||[]).forEach(function(t,i){all.push({a:a,t:t,i:i})})});
+  var r=roll(all),T=buildTree(list);
+  var h='<div class="lv"><div class="lv-all"><div class="lv-ah"><div class="grow"><h2>Overall progress</h2><p class="hint">'+r.pct+'% complete · '+esc(rollText(r))+'</p></div>'+bulkBtns(list.map(function(a){return a.id}),'everyone')+'</div>'+pbar(r.running?'running':r.paused?'paused':'queued',r.pct,true)
+   +(r.unmeasured?'<p class="hint">'+r.unmeasured+' running ticket'+(r.unmeasured===1?' has':'s have')+' no percentage yet, so the overall figure counts them as 0%. Type a percentage on a ticket to record one.</p>':'')+'</div>';
+  T.roots.forEach(function(root){
+    var ags=[];(function walk(a){ags.push(a);(T.kids[a.id]||[]).forEach(walk)})(root);
+    var its=[];ags.forEach(function(a){(a.todos||[]).forEach(function(t,i){its.push({a:a,t:t,i:i})})});
+    var tr=roll(its);
+    h+='<section class="lv-team"><div class="lv-ah"><div class="grow"><h3>'+esc(root.name)+'</h3><p class="hint">'+ags.length+' agent'+(ags.length===1?'':'s')+' · '+tr.pct+'% · '+esc(rollText(tr))+'</p></div>'+bulkBtns(ags.map(function(a){return a.id}),'team')+'</div>'+pbar(tr.running?'running':tr.paused?'paused':'queued',tr.pct)
+     +'<div class="lv-agents">'+ags.map(function(a){return liveAgent(a,T)}).join('')+'</div></section>';
+  });
+  h+='<p class="hint">A bar fills when someone records progress on a ticket here or the status snapshot is refreshed; a moving stripe means running with no percentage recorded. Pause, rest, revoke and withdraw record your decision on this page and in each agent\'s chat; they do not stop a scheduled run elsewhere.</p></div>';
+  return h;
+}
 function trackerView(list){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
   if(!list.length)return emptyHTML();
@@ -1229,7 +1401,7 @@ function editHTML(){
   EF.forEach(function(x){
     var k=x[0],v=e.f[k]==null?'':e.f[k],id='ef-'+k,c;
     if(x[2]==='level'){var lv=['Head','Junior','Agent'];if(v&&lv.indexOf(v)<0)lv.push(v);c='<select id="'+id+'" data-ef="'+k+'">'+lv.map(function(o){return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'}).join('')+'</select>'}
-    else if(x[2]==='status')c='<select id="'+id+'" data-ef="'+k+'">'+['active','paused','draft'].map(function(o){return '<option value="'+o+'"'+(o===(v||'active')?' selected':'')+'>'+statusLabel(o)+'</option>'}).join('')+'</select>';
+    else if(x[2]==='status')c='<select id="'+id+'" data-ef="'+k+'">'+['active','paused','draft'].concat(['resting','revoked','withdrawn'].indexOf(v)>=0?[v]:[]).map(function(o){return '<option value="'+o+'"'+(o===(v||'active')?' selected':'')+'>'+statusLabel(o)+'</option>'}).join('')+'</select>';
     else if(x[2]==='area'||x[2]==='lines')c='<textarea id="'+id+'" data-ef="'+k+'" rows="'+(x[2]==='area'?3:5)+'">'+esc(v)+'</textarea>';
     else c='<input type="text" id="'+id+'" data-ef="'+k+'" value="'+esc(v)+'">';
     h+='<div class="fld"><label for="'+id+'">'+esc(x[1])+'</label>'+c+'</div>';
@@ -1264,8 +1436,16 @@ function modelsHTML(){
   h+='<section class="sec"><h3>Add a model</h3><div class="fld"><label for="mnew-name">Name</label><input type="text" id="mnew-name" placeholder="For example Qwen"></div><div class="fld"><label for="mnew-vendor">Vendor</label><input type="text" id="mnew-vendor"></div><div class="fld"><label for="mnew-note">Note</label><input type="text" id="mnew-note" placeholder="How it is reached, for example through a Codex CLI"></div><div><button class="btn primary" data-act="model-add">Add model</button></div><span class="hint">New models start as not connected. Tick Connected once it really is.</span></section></div></aside>';
   return h;
 }
-function guardLines(a: any): string[] { var g=appliedTo(a),o: string[]=[]; if(a.progress&&S.report&&S.report.facts)o.push('Team-wide facts: '+S.report.facts.join(' | ')); if(g.rules.length){o.push('Guardrails the founder set for you (follow them strictly):');g.rules.forEach(function(r: any){o.push('- '+ruleLabel(r.type)+': '+r.text)})} if(g.items.length){o.push('Skills, plugins and tools assigned to you on the Capabilities page (a register, not proof they are installed):');g.items.forEach(function(x: any){o.push('- '+x.name+' ('+kindLabel(x.kind)+', '+x.status+')'+(x.what?': '+x.what:''))})} return o }
+function guardLines(a: any): string[] { return guardLines0(a).concat(stateLines(a)) }
+function guardLines0(a: any): string[] { var g=appliedTo(a),o: string[]=[]; if(a.progress&&S.report&&S.report.facts)o.push('Team-wide facts: '+S.report.facts.join(' | ')); if(g.rules.length){o.push('Guardrails the founder set for you (follow them strictly):');g.rules.forEach(function(r: any){o.push('- '+ruleLabel(r.type)+': '+r.text)})} if(g.items.length){o.push('Skills, plugins and tools assigned to you on the Capabilities page (a register, not proof they are installed):');g.items.forEach(function(x: any){o.push('- '+x.name+' ('+kindLabel(x.kind)+', '+x.status+')'+(x.what?': '+x.what:''))})} return o }
 
+setInterval(function(){
+  if(!S.loaded)return;
+  var ch=false;
+  S.agents.forEach(function(a:any){if(restExpired(a)){a.status='active';delete a.restUntil;logStatus(a,'active','Rest ended');persist('agents',a.id,a);ch=true}});
+  if(ch){render();toast('A rest ended. The agent is active again.')}
+  else if(S.agents.some(function(a:any){return a.status==='resting'})&&!S.ctl&&!S.edit&&!S.chat&&!S.wizard&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render();
+},30000);
 render();
 (async function(){
   DB=createDb();DL=createDownloads();S.canImport=true;

@@ -10,7 +10,7 @@ export interface Goal { text: string; horizon?: string; done?: boolean; due?: st
 export interface Kra { area: string; outcome: string; weight: number }
 export interface Kpi { name: string; target: number | null; unit?: string; cadence?: string; dir?: 'up' | 'down'; current?: number | null; due?: string; note?: string }
 export type TodoStatus = 'todo' | 'doing' | 'done';
-export interface Todo { text: string; status?: TodoStatus; due?: string; note?: string }
+export interface Todo { text: string; status?: TodoStatus; due?: string; note?: string; pct?: number; state?: string; updatedAt?: number }
 export interface Routine { name: string; cadence?: string; state?: 'planned' | 'on' | 'paused'; next?: string; note?: string }
 export interface MemoryNote { text: string; at?: string; src?: string }
 export interface DocRef { title: string; path?: string; note?: string }
@@ -22,7 +22,7 @@ export interface Agent {
   name: string;
   role: string;
   reportsTo?: string;
-  status?: 'active' | 'paused' | 'draft';
+  status?: 'active' | 'paused' | 'draft' | 'resting' | 'revoked' | 'withdrawn';
   level?: string;
   purpose?: string;
   task?: string;

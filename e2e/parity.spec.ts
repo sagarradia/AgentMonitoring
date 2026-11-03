@@ -77,9 +77,10 @@ test('the port renders the same markup as the original page', async ({ browser }
     await act(orig);
     await act(port);
     const [a, b] = [await dom(orig), await dom(port)];
-    b.app = b.app.replace(NEW_HINT, OLD_HINT).replace(/<!--import-->[\s\S]*?<!--\/import-->/, '');
+    b.app = b.app.replace(NEW_HINT, OLD_HINT).replace(/<!--import-->[\s\S]*?<!--\/import-->/, '').replace(/<!--ctl-->[\s\S]*?<!--\/ctl-->/g, '');
     expect(a.app.length, name + ' rendered something').toBeGreaterThan(500);
     expect.soft(b.app, name + ' (#app)').toBe(a.app);
+    b.overlay = b.overlay.replace(/<!--ctl-->[\s\S]*?<!--\/ctl-->/g, '');
     expect.soft(b.overlay, name + ' (#overlay)').toBe(a.overlay);
   }
 });
