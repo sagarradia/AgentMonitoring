@@ -317,6 +317,14 @@ table.sheet td.stick{z-index:2}
 .sumrow{display:flex;gap:10px;flex-wrap:wrap}
 .sumrow span{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:13px}
 @media (max-width:900px){.kan{grid-template-columns:1fr}.kcol{max-height:none}}
+
+.spark{display:flex;align-items:flex-end;gap:3px;height:120px;padding:8px 0 0;border-bottom:1px solid var(--line)}
+.spark i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.spark i.z{background:var(--surface2)}
+.sparkx{display:flex;justify-content:space-between;font:400 11px var(--mono);color:var(--muted);margin-top:4px}
+.trk{display:flex;flex-direction:column;gap:20px}
+.trk h3.sh{font-family:var(--display);font-size:18px;margin-bottom:8px}
+.trk-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 </style>
 
 <div id="app"></div>
@@ -327,9 +335,12 @@ table.sheet td.stick{z-index:2}
 (function(){
 'use strict';
 
-/* GitHub snapshot taken 11 Oct 2026. "Sync from GitHub" replaces it. */
+/* GitHub snapshot taken 3 Nov 2026. "Sync from GitHub" replaces it. */
 var DEFAULT_REPOS=[
- {full_name:'Skybirds-Empyrean-Avenue/familyvault',url:'https://github.com/Skybirds-Empyrean-Avenue/familyvault',pushed_at:'2026-10-11T07:12:13Z',visibility:'private'},
+ {full_name:'Skybirds-Empyrean-Avenue/familyvault',url:'https://github.com/Skybirds-Empyrean-Avenue/familyvault',pushed_at:'2026-10-16T19:45:18Z',visibility:'private'},
+ {full_name:'sagarradia/AgentMonitoring',url:'https://github.com/sagarradia/AgentMonitoring',pushed_at:'2026-11-03T09:13:45Z',visibility:'public'},
+ {full_name:'sagarradia/agent-evals',url:'https://github.com/sagarradia/agent-evals',pushed_at:'2026-11-03T06:32:22Z',visibility:'private'},
+ {full_name:'sagarradia/agent-desk',url:'https://github.com/sagarradia/agent-desk',pushed_at:'2026-10-11T11:40:28Z',visibility:'private'},
  {full_name:'sagarradia/ensyncro',url:'https://github.com/sagarradia/ensyncro',pushed_at:'2026-08-02T17:49:51Z',visibility:'public'},
  {full_name:'sagarradia/pocketfund.in',url:'https://github.com/sagarradia/pocketfund.in',pushed_at:'2026-07-27T18:54:32Z',visibility:'private'},
  {full_name:'sagarradia/MarketingSite_Mock',url:'https://github.com/sagarradia/MarketingSite_Mock',pushed_at:'2026-07-21T09:50:19Z',visibility:'public'},
@@ -561,7 +572,7 @@ function railHTML(){
   });
   h+='</nav><div class="rail-foot">';
   if(MCP)h+='<button class="btn small" data-act="sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing…':'Sync from GitHub')+'</button>';
-  h+='<span>'+(S.syncedAt?'Synced '+esc(fmtDate(S.syncedAt)):'GitHub snapshot, 11 Oct 2026')+'</span></div></aside>';
+  h+='<span>'+(S.syncedAt?'Synced '+esc(fmtDate(S.syncedAt)):'GitHub snapshot, 3 Nov 2026')+'</span></div></aside>';
   return h;
 }
 function topHTML(repo){
@@ -594,7 +605,7 @@ function statsHTML(list){
 }
 function tabsHTML(list){
   var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
-  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['overview','Overview',''],['people','Directory',list.length],['report','Status report',list.length],['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb],['caps','Capabilities',ext().items.length+ext().rules.length],['connect','Connections',modelList().length]];
+  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['overview','Overview',''],['tracker','Tracker',''],['people','Directory',list.length],['report','Status report',list.length],['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb],['caps','Capabilities',ext().items.length+ext().rules.length],['connect','Connections',modelList().length]];
   return '<div class="tabs" role="tablist">'+t.map(function(x){return '<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(S.tab===x[0])+'">'+x[1]+(x[2]!==''?'<em>'+x[2]+'</em>':'')+'</button>'}).join('')+'</div>';
 }
 function emptyHTML(){
@@ -841,6 +852,54 @@ function exportDirCSV(){
     rows.push([a.name,a.role||'',a.level||'',x.team,a.reportsTo||'',statusLabel(a.status),m.now,m.prop,a.purpose||'',(a.responsibilities||[]).join(' | '),(a.may||[]).join(' | '),(a.mustNot||[]).join(' | '),a.handsOff||'',a.reads||'',(a.tools||[]).join(', '),(a.skills||[]).map(function(z){return z.name}).join(', '),(a.routines||[]).map(function(z){return z.name+' ('+(z.cadence||'')+')'}).join(' | '),g.done==null?'':g.done,g.assigned==null?'':g.assigned])});
   var csv='\ufeff'+rows.map(function(r){return r.map(csvCell).join(',')}).join('\r\n');
   DL.save({filename:'agent-directory.csv',data:csv}).then(function(){toast('Saved the directory as CSV')},function(e){if(!e||e.code!=='declined')toast('Could not save the file here.')});
+}
+
+/* ---------- tracker ---------- */
+function closedOn(t){var m=/Closed (\d{4}-\d{2}-\d{2})/.exec(t.note||'');return m?m[1]:''}
+function dayDiff(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00:00:00'))/864e5)}
+function addDays(s0,n){var d=new Date(s0+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmtShort(s0){return new Date(s0+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'})}
+function trackerView(list){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!list.length)return emptyHTML();
+  var td=today(),items=[];
+  list.forEach(function(a){(a.todos||[]).forEach(function(t){items.push({a:a,t:t,c:closedOn(t)})})});
+  var total=items.length,done=items.filter(function(x){return x.t.status==='done'}),open=items.filter(function(x){return x.t.status!=='done'});
+  var isBl=function(x){return isBlocked(x.t)||/^Blocked/.test(x.t.note||'')};
+  var blocked=open.filter(isBl),doing=open.filter(function(x){return x.t.status==='doing'}),needs=open.filter(function(x){return /Needs the founder/i.test(x.t.note||'')}),ready=open.filter(function(x){return /^Ready/.test(x.t.note||'')&&!isBl(x)});
+  var dates=done.map(function(x){return x.c}).filter(Boolean).sort(),last=dates.length?dates[dates.length-1]:'';
+  var c7=dates.filter(function(d){return dayDiff(td,d)<7}).length,c14=dates.filter(function(d){return dayDiff(td,d)<14}).length;
+  var pct=total?Math.round(100*done.length/total):0,perWeek=c14/2,idle=last?dayDiff(td,last):null;
+  var byDay={};dates.forEach(function(d){byDay[d]=(byDay[d]||0)+1});
+  var peakDay=Object.keys(byDay).sort(function(x,y){return byDay[y]-byDay[x]})[0];
+  var eta=perWeek>0?'About '+Math.max(1,Math.ceil(open.length/perWeek))+' week'+(Math.ceil(open.length/perWeek)>1?'s':'')+' at the last two weeks\' pace':(last?'No estimate: nothing has closed for '+idle+' days':'No estimate: nothing has closed yet');
+  var rp=S.report||{};
+  var h='<div class="trk"><div class="ov-hero'+(c7?' ok':'')+'"><h2>'+(c7?c7+' ticket'+(c7>1?'s':'')+' closed in the last 7 days.':(last?'Nothing has closed for '+idle+' days.':'Nothing has closed yet.'))+'</h2><p>'+done.length+' of '+total+' done ('+pct+'%). '+open.length+' still open, '+blocked.length+' of them stuck behind something else. '+esc(eta)+'.</p></div>';
+  h+='<div class="trk-tiles">'
+   +'<div class="ov-tile"><b>'+pct+'%</b><span>complete ('+done.length+' of '+total+')</span></div>'
+   +'<div class="ov-tile"><b>'+open.length+'</b><span>pending</span></div>'
+   +'<div class="ov-tile"><b>'+doing.length+'</b><span>in progress</span></div>'
+   +'<div class="ov-tile"><b>'+blocked.length+'</b><span>blocked</span></div>'
+   +'<div class="ov-tile"><b>'+c7+'</b><span>closed in last 7 days</span></div>'
+   +'<div class="ov-tile"><b>'+(peakDay?byDay[peakDay]:0)+'</b><span>best day'+(peakDay?' ('+fmtShort(peakDay)+')':'')+'</span></div>'
+   +'<div class="ov-tile"><b>'+(perWeek?perWeek.toFixed(1):'0')+'</b><span>per week, last 2 weeks</span></div>'
+   +'<div class="ov-tile"><b>'+(idle==null?'—':idle)+'</b><span>days since last close</span></div></div>';
+  var bars=[],mx=1,i;
+  for(i=27;i>=0;i--){var d=addDays(td,-i),n=byDay[d]||0;if(n>mx)mx=n;bars.push([d,n])}
+  h+='<div><h3 class="sh">Tickets closed per day, last 28 days</h3><div class="spark" role="img" aria-label="Bar chart of tickets closed per day">'+bars.map(function(b){return '<i class="'+(b[1]?'':'z')+'" style="height:'+(b[1]?Math.max(6,Math.round(100*b[1]/mx)):2)+'%" title="'+fmtShort(b[0])+': '+b[1]+' closed"></i>'}).join('')+'</div><div class="sparkx"><span>'+fmtShort(bars[0][0])+'</span><span>peak '+mx+' a day</span><span>'+fmtShort(td)+'</span></div></div>';
+  var T=buildTree(list),tm='';
+  T.roots.forEach(function(r){
+    var a2=0,d2=0,b2=0,k7=0,l2='',n=0;
+    (function walk(a){n++;(a.todos||[]).forEach(function(t){a2++;if(t.status==='done'){d2++;var c=closedOn(t);if(c){if(dayDiff(td,c)<7)k7++;if(c>l2)l2=c}}else if(isBlocked(t)||/^Blocked/.test(t.note||''))b2++});(T.kids[a.id]||[]).forEach(walk)})(r);
+    var p2=a2?Math.round(100*d2/a2):null;
+    tm+='<div class="cd"><div class="cd-h"><div class="grow"><h3>'+esc(r.name)+'</h3><span class="hint">'+n+' agent'+(n>1?'s':'')+'</span></div><b class="mono '+tone(p2)+'">'+(p2==null?'—':p2+'%')+'</b></div>'+barHTML(p2)
+     +'<span class="hint">'+(a2?d2+' of '+a2+' done · '+(a2-d2)+' pending'+(b2?' · '+b2+' blocked':'')+' · '+k7+' closed this week'+(l2?' · last close '+fmtShort(l2):''):'No tickets assigned')+'</span></div>';
+  });
+  h+='<div><h3 class="sh">By team</h3><div class="gc">'+tm+'</div></div>';
+  function lst(title,arr,empty){return '<div class="cd"><div class="cd-h"><div class="grow"><h3>'+title+'</h3></div><b class="mono">'+arr.length+'</b></div>'+(arr.length?'<ul class="cl" style="max-height:260px">'+arr.slice(0,12).map(function(x){return '<li>'+esc(x.t.text)+' <span class="hint">· '+esc(x.a.name)+(x.t.note?' · '+esc(x.t.note):'')+'</span></li>'}).join('')+(arr.length>12?'<li class="hint">+'+(arr.length-12)+' more in Todos</li>':'')+'</ul>':'<span class="hint">'+empty+'</span>')+'</div>'}
+  h+='<div><h3 class="sh">Pending work</h3><div class="gc">'+lst('Needs you',needs,'Nothing waiting on you.')+lst('In progress',doing,'Nothing in progress.')+lst('Ready to start',ready,'Nothing ready.')+lst('Blocked',blocked,'Nothing blocked.')+'</div></div>';
+  h+='<p class="hint">Numbers come from each agent\'s tickets and the dates GitHub recorded when they closed, as of '+esc(rp.asOf||'the last status snapshot')+'. This page does not poll GitHub by itself, so it moves when the snapshot is refreshed. Speed is closed tickets per day or week; opened dates are not recorded, so there is no cycle time.</p></div>';
+  return h;
 }
 function overviewView(list){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
@@ -1153,8 +1212,8 @@ function connectView(){
 
 function shellHTML(){
   var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
-  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
-   +'<section>'+(S.tab==='overview'?overviewView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
+  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
+   +'<section>'+(S.tab==='overview'?overviewView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
 }
 
 var LSPEC={
