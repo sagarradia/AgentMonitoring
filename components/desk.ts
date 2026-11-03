@@ -444,6 +444,18 @@ function saveBrief(id:any,text:any,quiet?:any){
   var p=S.projects[id]||{};p.brief=text.trim();S.projects[id]=p;persist('projects',id,p);
   if(!quiet){render();toast('Brief saved')}
 }
+/* GitHub may not return a private or organisation repo (token scope). Never drop a project that has agents or is in the saved list. */
+function keepKnown(items:any[]):any[]{
+  var have:any={};items.forEach(function(x:any){have[rid(x)]=1});
+  var out=items.slice();
+  DEFAULT_REPOS.concat(S.repos||[]).forEach(function(x:any){
+    var k=rid(x);
+    if(have[k])return;
+    var used=S.agents.some(function(a:any){return a.projectId===k});
+    if(used||DEFAULT_REPOS.some(function(d:any){return rid(d)===k})){have[k]=1;out.push(x)}
+  });
+  return out;
+}
 async function sync(){
   if(!MCP||S.syncing)return;
   S.syncing=true;render();
@@ -451,9 +463,10 @@ async function sync(){
     var repos=await listRepos();
     var items=repos.filter(function(x:any){return x&&x.full_name&&x.full_name.indexOf('/')>0}).map(function(x:any){return {full_name:x.full_name,url:x.url||('https://github.com/'+x.full_name),pushed_at:x.pushed_at||'',visibility:x.visibility||'private'}});
     if(!items.length)throw {code:'empty'};
+    var fromGh=items.length;items=keepKnown(items);
     S.repos=items;S.syncedAt=Date.now();
     persist('meta','repos',{items:items,syncedAt:S.syncedAt});
-    toast('Synced '+items.length+' repositories');
+    toast('Synced '+fromGh+' repositories'+(items.length>fromGh?' (kept '+(items.length-fromGh)+' that GitHub did not list; check the token has access)':''));
   }catch(e:any){
     var c=e&&e.code;
     toast(c==='needs_reauth'?'GitHub rejected the token. Check GITHUB_TOKEN, then sync again.':c==='server_not_connected'?'GitHub is not connected. Set GITHUB_TOKEN, then sync again.':c==='rate_limited'?'Too many syncs. Wait a minute and try again.':c==='empty'?'GitHub returned no repositories.':'Sync failed. Try again in a moment.');
@@ -1279,7 +1292,7 @@ render();
   DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/report').onSnapshot(function(d:any){S.report=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/repos').onSnapshot(function(d:any){
-    if(d.exists){var v=d.data();if(v&&Array.isArray(v.items)&&v.items.length){S.repos=clone(v.items);S.syncedAt=v.syncedAt||null;render()}}
+    if(d.exists){var v=d.data();if(v&&Array.isArray(v.items)&&v.items.length){S.repos=keepKnown(clone(v.items));S.syncedAt=v.syncedAt||null;render()}}
   },function(){});
   render();
 })();
