@@ -320,3 +320,10 @@ table.sheet td.stick{z-index:2}
 .checks label{display:flex;gap:8px;align-items:center;font-weight:400;cursor:pointer}
 .more{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:12px}
 .more>h3{font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:120px;padding:8px 0 0;border-bottom:1px solid var(--line)}
+.spark i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.spark i.z{background:var(--surface2)}
+.sparkx{display:flex;justify-content:space-between;font:400 11px var(--mono);color:var(--muted);margin-top:4px}
+.trk{display:flex;flex-direction:column;gap:20px}
+.trk h3.sh{font-family:var(--display);font-size:18px;margin-bottom:8px}
+.trk-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
