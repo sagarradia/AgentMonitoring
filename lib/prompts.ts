@@ -7,7 +7,7 @@ export const ROUTINES = 'Go through each of your routines. For each one say whet
 export const HOLD = 'Accountability review. Go through your todos, goals and KPIs one by one. For every item that is not done or not on track, tell me: (1) why it is not progressing, (2) what you need from me or another agent, and (3) a specific finish date. Finish with the three things you will do first.';
 export const TIMELINES = 'Give me a dated timeline. For every open todo and every goal that is not met, a realistic finish date and what it depends on. Say which ones you cannot finish when I would expect, and why.';
 
-export function recordsText(a: Agent): string {
+export function recordsText(a: Agent, extra: string[] = []): string {
   const L2: string[] = [];
   L2.push('Mission: ' + (a.purpose || '(none)'));
   if (a.reportsTo) L2.push('Reports to: ' + a.reportsTo);
@@ -28,31 +28,33 @@ export function recordsText(a: Agent): string {
   L2.push('Todos:');
   (a.todos || []).forEach((t, i) => { L2.push((i + 1) + '. ' + t.text + ' | ' + (t.status || 'todo') + (t.due ? ' | due ' + t.due + (isLate('todo', t) ? ' (overdue)' : '') : ' | no due date') + (t.note ? ' | note: ' + t.note : '')) });
   if (!(a.todos || []).length) L2.push('(none)');
+  if (a.progress) { const g = a.progress as { asOf?: string; assigned: number; done: number; pct: number | null; open: number; lastActive?: string; idleDays?: number | null; reasons?: string[] }; L2.push('Repo record as of ' + g.asOf + ' (GitHub tickets and the shared run log): ' + (g.assigned ? g.done + ' of ' + g.assigned + ' tickets done (' + g.pct + '%), ' + g.open + ' open' : 'no tickets of your own') + '; last active ' + (g.lastActive || 'never') + (g.idleDays != null ? ' (' + g.idleDays + ' days ago)' : '') + '. Reasons on file: ' + (g.reasons || []).join(' | ')) }
   L2.push('Routines (planned cadence and next-run date as recorded here; "planned" means not confirmed as scheduled):');
   (a.routines || []).forEach((r, i) => { L2.push((i + 1) + '. ' + r.name + ' | ' + (r.cadence || 'no cadence') + ' | ' + (r.state || 'planned') + (r.next ? ' | next run ' + r.next + (routineLate(r) ? ' (overdue)' : '') : ' | no next-run date') + (r.note ? ' | note: ' + r.note : '')) });
   if (!(a.routines || []).length) L2.push('(none)');
   if ((a.memory || []).length) { L2.push('Memory notes the founder wants you to keep in mind:'); (a.memory || []).forEach((m) => { L2.push('- ' + m.text + (m.at ? ' (' + m.at + ')' : '')) }) }
   if ((a.docs || []).length) { L2.push('Docs you work from (you only know titles and paths, not contents):'); (a.docs || []).forEach((x) => { L2.push('- ' + x.title + (x.path ? ' [' + x.path + ']' : '') + (x.note ? ': ' + x.note : '')) }) }
   if ((a.skills || []).length) { L2.push('Skills you have:'); (a.skills || []).forEach((x) => { L2.push('- ' + x.name + (x.note ? ': ' + x.note : '')) }) }
+  if (extra.length) L2.push(...extra);
   return L2.join('\n');
 }
 
-export function agentBrief(repos: Repo[], a: Agent, projectBrief: string | undefined): string {
+export function agentBrief(repos: Repo[], a: Agent, projectBrief: string | undefined, extra: string[] = []): string {
   const td = today(), pr = projectBrief;
   return 'You are playing the AI agent "' + a.name + '" (' + a.role + ') on the project ' + fullName(repos, a.projectId) + '. The person talking to you is the founder who runs the project and is holding you accountable. Stay in role, in the first person, in plain direct language.\n\n'
     + 'Rules:\n'
-    + '- You have no run logs and no memory of past work beyond the records below. Never claim work is done unless the records say so.\n'
+    + '- Your only evidence of past work is the records below, including the repo record from GitHub tickets and the shared run log. Never claim work beyond them, and say plainly when the records do not explain something.\n'
     + '- When asked why something is stalled, ground the answer in the records (status, blocked or needs-founder tags in the todo text, priority, missing due dates, missing KPI targets or readings) and in your role limits (what you must not do, who you hand off to, approvals you need). If you do not know, say so and say what you need.\n'
     + '- When asked for timelines, give specific dates (YYYY-MM-DD) after today, say what each depends on, and be honest about what cannot be done in time.\n'
     + '- Routines show only a planned cadence and a recorded next-run date, not proof that a run happened. Docs are known by title and path only; do not describe their contents.\n'
     + '- Do not invent tickets, numbers, people or events. Take complaints without defensiveness: say what you will change and by when.\n'
     + '- Keep replies under about 200 words unless asked for more. Use a short list only when covering several items.\n\n'
-    + 'Today is ' + td + '.\n' + (pr ? 'Project brief: ' + pr + '\n' : '') + '\nYour records:\n' + recordsText(a);
+    + 'Today is ' + td + '.\n' + (pr ? 'Project brief: ' + pr + '\n' : '') + '\nYour records:\n' + recordsText(a, extra);
 }
 
-export function chatTurns(repos: Repo[], a: Agent, projectBrief: string | undefined, messages: ChatMessage[]): Turn[] {
+export function chatTurns(repos: Repo[], a: Agent, projectBrief: string | undefined, messages: ChatMessage[], extra: string[] = []): Turn[] {
   const msgs = (messages || []).slice(-24);
-  const turns: Turn[] = [{ role: 'user', content: agentBrief(repos, a, projectBrief) }];
+  const turns: Turn[] = [{ role: 'user', content: agentBrief(repos, a, projectBrief, extra) }];
   msgs.forEach((m) => { turns.push({ role: m.role === 'agent' ? 'assistant' : 'user', content: m.text }) });
   return turns;
 }

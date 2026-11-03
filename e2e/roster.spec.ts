@@ -12,6 +12,9 @@ test('seeded roster loads, an agent expands, an edited due date survives a reloa
   await page.click('button[type=submit]');
   await expect(page).toHaveURL(/\/$/);
 
+  // The landing page is the overview; the roster spreadsheet is one click away.
+  await page.click('.tab[data-tab="agents"]');
+  await page.click('[data-act="vw"][data-tab="agents"][data-view="sheet"]');
   // Seeded roster: all 39 agents have their own row, without expanding anything.
   await expect(page.locator('.strip .v').first()).toContainText('39');
   await expect(page.locator('table.sheet tr.r-agent')).toHaveCount(39);
@@ -19,9 +22,8 @@ test('seeded roster loads, an agent expands, an edited due date survives a reloa
 
   // Expand the CTO row: its goals, KPIs and todos appear as sub-rows.
   const caret = page.locator(`button.caret[data-id="${AGENT}"]`);
-  await expect(caret).toHaveAttribute('aria-expanded', 'false');
-  await caret.click();
-  await expect(page.locator(`button.caret[data-id="${AGENT}"]`)).toHaveAttribute('aria-expanded', 'true');
+  // Team heads start expanded.
+  await expect(caret).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('table.sheet tr.r-agent')).toHaveCount(39);
   const due = page.locator(`#d-todo-${AGENT}-0`);
   await expect(due).toBeVisible();
@@ -34,8 +36,8 @@ test('seeded roster loads, an agent expands, an edited due date survives a reloa
 
   // Reload: expand again (expansion is view state, as before) and the date is still there.
   await page.reload();
+  await page.click('.tab[data-tab="agents"]');
   await expect(page.locator('table.sheet tr.r-agent')).toHaveCount(39);
-  await page.locator(`button.caret[data-id="${AGENT}"]`).click();
   await expect(page.locator(`#d-todo-${AGENT}-0`)).toHaveValue(NEW_DUE);
 
   // And it is in the store, not only in the page.
