@@ -3,7 +3,7 @@
    of the seed's agents belong to. */
 import type { Agent, Project } from './types';
 
-export function seedDocs(seed: { agents?: Agent[]; projects?: Record<string, unknown> }) {
+export function seedDocs(seed: { agents?: Agent[]; projects?: Record<string, unknown>; meta?: Record<string, unknown> }) {
   const agents: Record<string, Agent> = {};
   for (const a of seed.agents || []) {
     if (!a || typeof a.id !== 'string' || !a.id) throw new Error('every seed agent needs an id');

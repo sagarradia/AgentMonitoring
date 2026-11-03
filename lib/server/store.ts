@@ -114,13 +114,46 @@ export function storeFromEnv(env: NodeJS.ProcessEnv = process.env): Store {
 /* First use of an empty database loads seed.json: every seed document that is not there yet is
    written, then meta/seeded is set so it never runs again (deleted agents stay deleted).
    Set AUTO_SEED=off to skip. */
-export async function seedIfNew(store: Store, docs: { agents: Record<string, unknown>; projects: Record<string, unknown> }): Promise<boolean> {
+type SeedDocs = { agents: Record<string, unknown>; projects: Record<string, unknown>; meta?: Record<string, unknown> };
+export const UPGRADE_ID = 'upgrade-2026-11';
+
+export async function seedIfNew(store: Store, docs: SeedDocs): Promise<boolean> {
   if (await store.get('meta', 'seeded')) return false;
   for (const c of ['agents', 'projects'] as const) {
     const have = new Set((await store.list(c)).map((d) => d.id));
     for (const [id, data] of Object.entries(docs[c])) if (!have.has(id)) await store.put(c, id, data as Record<string, unknown>);
   }
+  for (const [id, data] of Object.entries(docs.meta || {})) await store.put('meta', id, data as Record<string, unknown>);
   await store.put('meta', 'seeded', { at: Date.now() });
+  await store.put('meta', UPGRADE_ID, { at: Date.now() });
+  return true;
+}
+
+const isTodoUntouched = (t: unknown) => !!t && typeof t === 'object' && ((t as { status?: string }).status || 'todo') === 'todo' && !(t as { due?: string }).due;
+const isEmpty = (v: unknown) => !Array.isArray(v) || v.length === 0;
+
+/* One-time upgrade for databases seeded before November 2026. It adds the repo progress record
+   and replaces the report snapshot. It never overwrites things you added: memory, docs, skills
+   and routines are filled only where empty, and todos are replaced only if you have not touched
+   them (all still "to do" with no due date). Models and capabilities settings are left alone. */
+export async function upgradeSeed(store: Store, docs: SeedDocs, opts: { force?: boolean } = {}): Promise<boolean> {
+  if (!opts.force) {
+    if (!(await store.get('meta', 'seeded'))) return false;
+    if (await store.get('meta', UPGRADE_ID)) return false;
+  }
+  for (const [id, fresh] of Object.entries(docs.agents)) {
+    const cur = await store.get('agents', id);
+    if (!cur) continue;
+    const have = cur.data as Record<string, unknown>, add = fresh as Record<string, unknown>, next: Record<string, unknown> = { ...have };
+    if (add.progress) next.progress = add.progress;
+    for (const k of ['memory', 'docs', 'skills', 'routines']) if (isEmpty(have[k]) && !isEmpty(add[k])) next[k] = add[k];
+    if (!isEmpty(add.todos) && (isEmpty(have.todos) || (have.todos as unknown[]).every(isTodoUntouched))) next.todos = add.todos;
+    await store.put('agents', id, next);
+  }
+  const meta = docs.meta || {};
+  if (meta.report) await store.put('meta', 'report', meta.report as Record<string, unknown>);
+  if (meta.models && !(await store.get('meta', 'models'))) await store.put('meta', 'models', meta.models as Record<string, unknown>);
+  await store.put('meta', UPGRADE_ID, { at: Date.now() });
   return true;
 }
 
@@ -130,7 +163,8 @@ function withAutoSeed(store: Store, env: NodeJS.ProcessEnv): Store {
   const go = () => (ready ||= (async () => {
     const { seedDocs } = await import('../seed');
     const seed = (await import('../../seed.json')).default as Parameters<typeof seedDocs>[0];
-    await seedIfNew(store, seedDocs(seed) as { agents: Record<string, unknown>; projects: Record<string, unknown> });
+    const docs = { ...seedDocs(seed), meta: (seed as { meta?: Record<string, unknown> }).meta } as SeedDocs;
+    if (!(await seedIfNew(store, docs))) await upgradeSeed(store, docs);
   })().catch((e) => { ready = null; throw e }));
   return {
     list: async (c) => { await go(); return store.list(c) },

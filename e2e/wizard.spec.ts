@@ -4,7 +4,7 @@ test('wizard pre-selects options from the task and saves the choices on the new 
   await page.goto('/login');
   await page.fill('#password', 'e2e-password-not-real');
   await page.click('button[type=submit]');
-  await page.locator('table.sheet').waitFor();
+  await page.locator('.tabs').waitFor();
 
   await page.click('header [data-act="wizard-open"]');
   await page.fill('#w-task', 'review pull requests and fix bugs');

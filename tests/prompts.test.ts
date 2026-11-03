@@ -15,7 +15,7 @@ describe('agentBrief', () => {
     const block = original.slice(original.indexOf("+'Rules:\\n'"), original.indexOf("+'Today is '"));
     const rules = [...block.matchAll(/\+'(- [^'\\]*)\\n/g)].map((m) => m[1]);
     expect(rules.length).toBe(6);
-    expect(rules[0]).toBe('- You have no run logs and no memory of past work beyond the records below. Never claim work is done unless the records say so.');
+    expect(rules[0]).toBe('- Your only evidence of past work is the records below, including the repo record from GitHub tickets and the shared run log. Never claim work beyond them, and say plainly when the records do not explain something.');
     for (const r of rules) expect(text).toContain(r);
   });
 

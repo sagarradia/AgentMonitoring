@@ -16,6 +16,15 @@ original file and this app with the same data and checks that the markup is iden
 | `mcp` `list_repos` ("Sync from GitHub") | `GET /api/repos`, which calls GitHub REST `GET /user/repos` with `GITHUB_TOKEN` |
 | `downloads` (CSV) | A normal browser Blob download |
 
+**November 2026 update.** The page now matches the Claude artifact at version 9: an Overview landing page,
+a Directory (People and Spreadsheet layouts, editable fields and models), a Status report built from the repo
+record, Capabilities (skills, plugins and guardrails scoped to everyone, a project, a team or named people),
+Connections (models and where their keys live, never the keys), and card layouts with a Spreadsheet switch on
+Roster, Todos, Goals and KPIs, and Library. Layout choices are remembered in the browser. Capabilities and model
+settings are stored as `meta/ext` and `meta/models`. A one-time upgrade (`meta/upgrade-2026-11`) adds the repo
+progress record to existing agents and replaces `meta/report`; it never overwrites memory, docs, skills or routines
+you added, or todos you changed.
+
 The whole app sits behind a shared-password login, and every API route has a per-IP rate limit.
 
 ## Layout
