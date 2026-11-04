@@ -1357,7 +1357,7 @@ function gate(who:any,units:any,holder:any,key:string){
   holder.overOk=key;holder.err='This goes over a limit you set: '+c.reasons.join('; ')+'. Repeat the same action to approve going over.';render();return false;
 }
 function isoPlus(days:any){return new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
-function coName(id:any){var n=fullName(S.repos,id);return n.indexOf('/')>=0?n.split('/')[1]:n}
+function coName(id:any){var n=fullName(id);return n.indexOf('/')>=0?n.split('/')[1]:n}
 function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
 function siteOf(id:any){
   var m=safeUrl(((S.org&&S.org.companies&&S.org.companies[id])||{}).site);if(m)return m;

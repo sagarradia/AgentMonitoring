@@ -147,3 +147,17 @@ test('HR desk: raise a requisition, approve, and the build form opens pre-filled
   await expect(page.locator('.modal')).toBeVisible();
   await expect(page.locator('#wx-dept')).toHaveValue('Marketing');
 });
+
+test('company names show as names, never [object Object]', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  for (const t of ['co', 'hr', 'org']) {
+    await page.click('.subtab[data-tab="' + t + '"]');
+    await expect(page.locator('body')).not.toContainText('[object Object]');
+  }
+  await page.click('.subtab[data-tab="co"]');
+  await expect(page.locator('#lm-c')).not.toContainText('object');
+});
