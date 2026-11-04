@@ -14,6 +14,7 @@ import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, 
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
+import { ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
 import { MEMORY_OPTIONS, allHelpers, brainOf, defaultBrain, isLeader as isLeaderT, recommendModel, suggestSubs } from '@/lib/taskplan';
 import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefaults, extrasPrompt, applyExtras } from '@/lib/wizard-options';
 import { createDb, createSample, createDownloads, listRepos, loadConfig, type DB as DBT, type Sample, type Downloads } from '@/lib/client/runtime';
@@ -38,7 +39,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -127,7 +128,7 @@ function statsHTML(list:any){
    +'<div><span class="l">Goals met</span><span class="v">'+gd+' <small>of '+gt+'</small></span></div>'
    +'<div><span class="l">KPI attainment</span><span class="v">'+(avg==null?'—':avg+'<small>%</small>')+'</span></div></section>';
 }
-var GROUPS=[['progress','Progress',[['live','Now'],['tracker','History'],['report','Status report']]],['people','People',[['people','Directory'],['agents','Teams'],['lib','Library']]],['work','Work',[['tasks','Todos'],['score','Goals & KPIs']]]];
+var GROUPS=[['progress','Progress',[['live','Now'],['tracker','History'],['report','Status report']]],['people','People',[['people','Directory'],['agents','Teams'],['org','Org chart'],['co','Companies'],['lib','Library']]],['work','Work',[['tasks','Todos'],['score','Goals & KPIs']]]];
 function groupOf(tab:any){for(var i=0;i<GROUPS.length;i++)for(var j=0;j<GROUPS[i][2].length;j++)if(GROUPS[i][2][j][0]===tab)return GROUPS[i];return null}
 function tabsHTML(list){
   var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
@@ -138,7 +139,7 @@ function tabsHTML(list){
 function subTabsHTML(list:any,g:any){
   if(!g)return '';
   var n=list.reduce(function(s:any,a:any){return s+(a.todos||[]).length},0),k=list.reduce(function(s:any,a:any){return s+(a.kpis||[]).length+(a.goals||[]).length},0),lb=list.reduce(function(s:any,a:any){return s+libCount(a)},0);
-  var cnt:any={people:list.length,agents:list.length,report:list.length,tasks:n,score:k,lib:lb};
+  var cnt:any={people:list.length,agents:list.length,report:list.length,tasks:n,score:k,lib:lb,org:list.length,co:companyIds().length};
   return '<div class="subtabs" role="tablist" aria-label="'+esc(g[1])+'">'+g[2].map(function(m:any){return '<button class="subtab" role="tab" data-act="tab" data-tab="'+m[0]+'" aria-selected="'+(S.tab===m[0])+'">'+esc(m[1])+(cnt[m[0]]!=null?'<em>'+cnt[m[0]]+'</em>':'')+'</button>'}).join('')+'</div>';
 }
 function emptyHTML(){
@@ -234,8 +235,8 @@ function scoreView(list){return vsw('score','Cards')+(isSheet('score')?scoreShee
 function libView(list){return vsw('lib','Cards')+(isSheet('lib')?libSheet(list):libCards(list))}
 function shellHTML(){
   var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
-  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
-   +'<section>'+coverBanner()+((groupOf(S.tab)||[])[0]==='progress'?progressHeader():'')+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
+  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='org'||S.tab==='co'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
+   +'<section>'+coverBanner()+((groupOf(S.tab)||[])[0]==='progress'?progressHeader():'')+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='org'?orgView(list):S.tab==='co'?companiesView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
 }
 
 var LSPEC: any = {
@@ -296,6 +297,7 @@ function panelHTML(){
   }).join('')||'<p class="hint">No todos yet.</p>')
    +'<div class="addrow"><input type="text" id="todo-new" placeholder="Add a todo" aria-label="New todo"><button class="btn small" data-act="todo-add" data-id="'+id+'">Add</button></div></section>';
   ['routines','memory','docs','skills'].forEach(function(k){h+=libSec(a,k)});
+  h+=hrBlock(a);
   h+='<div class="foot"><button class="btn small" data-act="copy-jd" data-id="'+id+'">Copy job description</button>';
   if(S.confirmDelete===a.id)h+='</div><div class="confirm"><span>Delete this agent with its goals, KPIs and todos?</span><button class="btn small danger" data-act="delete-confirm" data-id="'+id+'">Delete</button><button class="btn small" data-act="delete-cancel">Keep</button></div>';
   else h+='<button class="btn small danger" data-act="delete-ask" data-id="'+id+'">Delete agent</button></div>';
@@ -401,7 +403,7 @@ function render(){
   var sw=app.querySelector('.sheetwrap'),sl=sw?sw.scrollLeft:0,stp=sw?sw.scrollTop:0;
   var ms=document.scrollingElement?document.scrollingElement.scrollTop:0;
   app.innerHTML=shellHTML();
-  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML()+impHTML()+addTaskHTML();
+  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML()+impHTML()+addTaskHTML()+moveHTML();
   [].forEach.call(overlay.querySelectorAll('.pickbox'),function(b:any,i:number){if(pbx[i])b.scrollTop=pbx[i]});
   var pb2=overlay.querySelector('.panel-body');if(pb2)pb2.scrollTop=pt;
   var mb2=overlay.querySelector('.modal-body');if(mb2)mb2.scrollTop=mt;
@@ -588,6 +590,12 @@ document.addEventListener('click',function(e){
   else if(act==='st-bulk'){var bids=String(el.dataset.ids||'').split(',').filter(Boolean);if(bids.length)openCtl(bids,el.dataset.st)}
   else if(act==='ctl-close'){S.ctl=null;render()}
   else if(act==='task-open')taskOpen(id);
+  else if(act==='mv-open'){var ma=S.agents.filter(function(x:any){return x.id===id})[0];if(ma){S.mv={id:id,kind:el.dataset.kind,to:'',until:isoPlus(14),reason:''};render()}}
+  else if(act==='mv-close'){S.mv=null;render()}
+  else if(act==='mv-ok')moveApply();
+  else if(act==='loan-end'){mutate(id,function(a:any){endLoan(a,'returned early by you')});toast('Returned to the home company')}
+  else if(act==='bench-toggle'){mutate(id,function(a:any){setBench(a,!a.bench)})}
+  else if(act==='rv-add'){var rr=Number((byId('rv-r-'+id)||{}).value),rn=String((byId('rv-n-'+id)||{}).value||'');var er=null;mutate(id,function(a:any){er=addReview(a,rr,rn)});if(er)toast(er);else toast('Review recorded')}
   else if(act==='task-close'){S.at=null;render()}
   else if(act==='task-add')taskAdd();
   else if(act==='task-all'){var tq=String(S.at&&S.at.q||'').toLowerCase();S.agents.forEach(function(a:any){if(!tq||(a.name+' '+(teamIndex()[a.id]||'')).toLowerCase().indexOf(tq)>=0)if(S.at.ids.indexOf(a.id)<0)S.at.ids.push(a.id)});atDefaults(S.at);render()}
@@ -692,6 +700,7 @@ document.addEventListener('input',function(e){
   else if(t.dataset.ctl==='custom'&&S.ctl){S.ctl.custom=t.value}
   else if(t.dataset.atq!==undefined&&S.at){S.at.q=t.value;render()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
+  else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
   else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
@@ -732,6 +741,8 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
+  else if(t.dataset.onb&&true){mutate(t.dataset.onb,function(a:any){setOnboarding(a,t.value,t.checked)})}
+  else if(t.dataset.cosite){var cs=String(t.value).trim(),cv=safeUrl(cs);if(cs&&!cv){toast('Use a web address that starts with https://');return}var og=orgDoc();og.companies[t.dataset.cosite]=Object.assign({},og.companies[t.dataset.cosite],{site:cv});S.org=og;persist('meta','org',og);render();toast(cv?'Website saved':'Website cleared')}
   else if(t.dataset.ebm!==undefined&&S.edit){S.edit.f.brain.memory=tgl(S.edit.f.brain.memory,t.value,t.checked)}
   else if(t.dataset.eb&&S.edit){S.edit.f.brain[t.dataset.eb]=t.dataset.eb==='own'?t.checked:t.value}
   else if(t.dataset.wbm!==undefined&&S.wizard){S.wizard.brain=S.wizard.brain||defaultBrain({role:S.wizard.task});S.wizard.brain.memory=tgl(S.wizard.brain.memory,t.value,t.checked)}
@@ -742,6 +753,7 @@ document.addEventListener('change',function(e){
   else if(t.dataset.asubm!==undefined&&S.at){S.at.t.subs=true;S.at.subs[Number(t.dataset.asubm)].model=t.value}
   else if(t.dataset.atf==='text'&&S.at){S.at.text=t.value;atDefaults(S.at);var pd=document.querySelector('details.plan');if(pd)pd.outerHTML=atPlanHTML()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
+  else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
   else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
   else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
   else if(t.dataset.ctlBackup){var bv=t.value;mutate(t.dataset.ctlBackup,function(a){if(bv)a.backupId=bv;else delete a.backupId})}
@@ -762,7 +774,8 @@ document.addEventListener('change',function(e){
 document.addEventListener('keydown',function(e){
   var t=e.target;
   if(e.key==='Escape'){
-    if(S.at){S.at=null;render()}
+    if(S.mv){S.mv=null;render()}
+    else if(S.at){S.at=null;render()}
     else if(S.imp){S.imp=null;render()}
     else if(S.xe){S.xe=null;render()}
     else if(S.edit){S.edit=null;render()}
@@ -911,7 +924,7 @@ function shortModel(id){return mn(id).replace(/^Claude\s+/,'')}
 function pcSec(t,body){return '<section class="pc-s"><h4>'+t+'</h4>'+body+'</section>'}
 function personCard(a,team){
   var id=esc(a.id),g=a.progress;
-  var h='<div class="pc-head"><span class="av lg">'+esc(initials(a.name))+'</span><div class="grow"><h3>'+esc(a.name)+'</h3><p class="hint">'+esc(a.role||'')+'</p><p class="hint">'+esc(team)+(a.reportsTo?' · reports to '+esc(a.reportsTo):'')+'</p></div>'
+  var h='<div class="pc-head"><span class="av lg">'+esc(initials(a.name))+'</span><div class="grow"><h3>'+esc(a.name)+'</h3><p class="hint">'+esc(a.role||'')+'</p><p class="hint">'+esc(team)+(a.reportsTo?' · reports to '+esc(a.reportsTo):'')+(activeLoan(a)?' · on loan to '+esc(coName(activeLoan(a).to)):'')+'</p></div>'
    +'<div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small" data-act="open-agent" data-id="'+id+'">Full profile</button><button class="btn small" data-act="task-open" data-id="'+id+'">Add task</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button></div></div>';
   h+='<div class="pc-facts"><div><span>Status</span><select class="cell" id="pcs-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Model now</span>'+modelSel(a,'now')+'</div><div><span>Model planned</span>'+modelSel(a,'prop')+'</div>'
@@ -929,6 +942,7 @@ function personCard(a,team){
   var bb=brainOf(a);
   h+=pcSec('Brain',(bb.own?'<p><b>Own brain</b> <span class="hint">memory kept for this agent alone</span></p>':'<p><b>Shares team memory</b></p>')+'<div class="chips">'+bb.memory.map(function(x:any){return '<span class="chip">'+esc(x)+'</span>'}).join('')+'</div>'+(bb.note?'<p class="hint">'+esc(bb.note)+'</p>':''));
   h+='<div class="pc-cols">'+pcSec('Memory',ulN((a.memory||[]).map(function(z){return z.text})))+pcSec('Docs',ulN((a.docs||[]).map(function(z){return z.title+(z.path?' ['+z.path+']':'')})))+'</div>';
+  h+=hrBlock(a);
   return h;
 }
 function peopleView(all){
@@ -1266,6 +1280,98 @@ async function setPause(paused:any){
   }catch(e){toast('Could not reach GitHub')}
   render();
 }
+/* ---------- companies, org chart, loans and the HR file ---------- */
+function orgDoc(){var o=S.org?clone(S.org):{};if(!o.companies)o.companies={};return o}
+function isoPlus(days:any){return new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
+function coName(id:any){var n=fullName(S.repos,id);return n.indexOf('/')>=0?n.split('/')[1]:n}
+function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
+function siteOf(id:any){
+  var m=safeUrl(((S.org&&S.org.companies&&S.org.companies[id])||{}).site);if(m)return m;
+  var r=S.feed&&S.feed.repos&&S.feed.repos[String(id).replace('__','/')];return (r&&safeUrl(r.site))||'';
+}
+function siteBtn(id:any){var u=siteOf(id);return u?'<a class="btn small primary" href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Open site ↗</a>':'<span class="hint">No website found yet</span>'}
+function stDot(a:any){var st=effState(a);return '<span class="stc st-'+esc(st)+'">'+esc(statusLabel(st))+'</span>'}
+function orgNode(a:any,T:any,depth:number){
+  if(depth>8)return '';
+  var kids=T.kids[a.id]||[],ln=activeLoan(a);
+  return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+'</span> '+stDot(a)
+   +(ln?' <span class="pill mute">on loan to '+esc(coName(ln.to))+' until '+esc(ln.until)+'</span>':'')+(a.bench?' <span class="pill mute">shared bench</span>':'')
+   +(kids.length?'<ul>'+kids.map(function(k:any){return orgNode(k,T,depth+1)}).join('')+'</ul>':'')+'</li>';
+}
+function orgView(list:any){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!list.length)return emptyHTML();
+  var T=buildTree(list),ids:any=[];list.forEach(function(a:any){if(ids.indexOf(a.projectId)<0)ids.push(a.projectId)});ids.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))});
+  var h='<div class="orgc"><div class="org-top"><b>You</b><span class="hint">owner of every company below</span></div><ul class="org-root">';
+  ids.forEach(function(pid:any){
+    var roots=T.roots.filter(function(r:any){return r.projectId===pid}),bor=list.filter(function(a:any){var l=activeLoan(a);return l&&l.to===pid&&a.projectId!==pid});
+    h+='<li><div class="org-co"><b>'+esc(coName(pid))+'</b> <span class="hint">'+list.filter(function(a:any){return a.projectId===pid}).length+' people</span> '+siteBtn(pid)+'</div>'
+     +(roots.length?'<ul>'+roots.map(function(r:any){return orgNode(r,T,0)}).join('')+'</ul>':'<p class="hint">No one in this company yet.</p>')
+     +(bor.length?'<p class="hint">Borrowed from other companies</p><ul>'+bor.map(function(a:any){var l=activeLoan(a);return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">from '+esc(coName(a.projectId))+' until '+esc(l.until)+' · '+esc(l.reason)+'</span></li>'}).join('')+'</ul>':'')+'</li>';
+  });
+  h+='</ul></div>';
+  var bench=list.filter(function(a:any){return a.bench});
+  if(bench.length)h+='<div class="block"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Available to any company. Lend them from the Companies tab.</p><ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span></li>'}).join('')+'</ul></div>';
+  return h+'<p class="hint">This chart is built from each agent\'s Reports to line and company. It is a record on this page, not the real role files.</p>';
+}
+function companiesView(list:any){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  if(!S.agents.length)return emptyHTML();
+  var ids=companyIds(),st=companyStats(S.agents,ids),h='<div class="gc">';
+  st.forEach(function(c:any){
+    var pid=c.id,fr=S.feed&&S.feed.repos&&S.feed.repos[String(pid).replace('__','/')],pct=c.assigned?Math.round(100*c.done/c.assigned):null,T=buildTree(S.agents.filter(function(a:any){return a.projectId===pid})),head=T.roots[0];
+    var man=((S.org&&S.org.companies&&S.org.companies[pid])||{}).site||'';
+    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small></div>'+siteBtn(pid)+'</div>'
+     +'<div class="chips"><span class="chip">'+c.total+' people</span><span class="chip">'+c.active+' active</span>'+(c.resting?'<span class="chip">'+c.resting+' resting</span>':'')+(c.paused?'<span class="chip">'+c.paused+' paused</span>':'')+(c.loanedOut?'<span class="chip">'+c.loanedOut+' lent out</span>':'')+(c.loanedIn?'<span class="chip">'+c.loanedIn+' borrowed</span>':'')+(c.bench?'<span class="chip">'+c.bench+' on bench</span>':'')+(fr&&fr.openPRs?'<span class="chip">'+fr.openPRs+' open pull requests</span>':'')+'</div>'
+     +(pct!=null?'<div class="pbar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div><p class="hint">'+c.done+' of '+c.assigned+' tickets done ('+pct+'%)</p>':'<p class="hint">No tickets recorded.</p>')
+     +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div></div>';
+  });
+  h+='</div>';
+  var bench=S.agents.filter(function(a:any){return a.bench}),loans=S.agents.filter(function(a:any){return activeLoan(a)});
+  h+='<div class="block" style="margin-top:16px"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Agents any company may borrow. Put someone on the bench from their HR file.</p>'
+   +(bench.length?'<ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span> <button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+esc(a.id)+'">Lend…</button></li>'}).join('')+'</ul>':'<p class="hint">Nobody is on the bench.</p>')+'</div>';
+  h+='<div class="block" style="margin-top:16px"><h2>Loans in force · '+loans.length+'</h2>'+(loans.length?'<ul class="cl">'+loans.map(function(a:any){var l=activeLoan(a);return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(coName(a.projectId))+' to '+esc(coName(l.to))+' until '+esc(l.until)+' · '+esc(l.reason)+'</span> <button class="btn small" data-act="loan-end" data-id="'+esc(a.id)+'">Return now</button></li>'}).join('')+'</ul>':'<p class="hint">No loans.</p>')+'</div>';
+  return h+'<p class="hint">Websites come from the homepage on GitHub, or the address of the latest deployment (Vercel reports it there). Loans end by themselves on their last day. All of this is a record here: it does not change real role files or start runs.</p>';
+}
+function moveHTML(){
+  var m=S.mv;if(!m)return '';
+  var a=S.agents.filter(function(x:any){return x.id===m.id})[0];if(!a)return '';
+  var others=companyIds().filter(function(x:any){return x!==a.projectId}),lendIt=m.kind==='lend';
+  return '<div class="scrim" data-act="mv-close"></div><div class="modal" role="dialog" aria-label="'+(lendIt?'Lend':'Move')+' '+esc(a.name)+'"><div class="modal-head"><h2>'+(lendIt?'Lend ':'Move for good: ')+esc(a.name)+'</h2><p>Home company: '+esc(coName(a.projectId))+'</p></div><div class="modal-body">'
+   +'<div class="fld"><label for="mv-to">To which company?</label><select id="mv-to" data-mvf="to"><option value="">Choose a company</option>'+others.map(function(x:any){return '<option value="'+esc(x)+'"'+(m.to===x?' selected':'')+'>'+esc(coName(x))+'</option>'}).join('')+'</select></div>'
+   +(lendIt?'<div class="fld"><label for="mv-until">Until (last day)</label><input type="date" id="mv-until" data-mvf="until" value="'+esc(m.until)+'"></div><div class="fld"><label for="mv-reason">What will it work on?</label><textarea id="mv-reason" rows="2" data-mvf="reason" placeholder="For example Security review of the upload screen">'+esc(m.reason)+'</textarea></div>':'<p class="hint">The agent leaves its manager and backup behind: name a new manager afterwards. Its tasks and history stay with it.</p>')
+   +'<p class="hint">Approving this is your decision as owner. While on loan, the borrowing company\'s guardrails also apply to the agent, and it is told to keep its home company\'s private details to itself. This is a record and a chat instruction: real runs follow the role files.</p></div>'
+   +'<div class="modal-foot"><button class="btn" data-act="mv-close">Cancel</button><button class="btn primary" data-act="mv-ok">'+(lendIt?'Approve loan':'Approve move')+'</button></div></div>';
+}
+function moveApply(){
+  var m=S.mv;if(!m)return;var a=S.agents.filter(function(x:any){return x.id===m.id})[0];if(!a)return;
+  var er=m.kind==='lend'?lendIn(a,m.to,m.until,m.reason):transferIn(a,m.to);
+  if(er){toast(er);return}
+  persist('agents',a.id,a);S.mv=null;render();toast(m.kind==='lend'?'Lent to '+coName(a.loan.to):'Moved to '+coName(a.projectId));
+}
+function hrBlock(a:any){
+  var id=esc(a.id),rs=reviewState(a),ob=onboardingProgress(a),ln=activeLoan(a),first=String(a.name||'this person').split(/[ (]/)[0];
+  var chip=rs.state==='never'?'<span class="pill mute">No review on file</span>':rs.state==='ok'?'<span class="pill ok">Next review '+esc(rs.next)+'</span>':rs.state==='due'?'<span class="pill warn">Review due since '+esc(rs.next)+'</span>':'<span class="pill bad">Review overdue since '+esc(rs.next)+'</span>';
+  var backup=a.backupId?(S.agents.filter(function(x:any){return x.id===a.backupId})[0]||{}).name:'';
+  var h='<section class="pc-s hr"><h4>HR file</h4><div class="pc-facts">'
+   +'<div><span>Company</span><b>'+esc(coName(a.projectId))+'</b></div>'
+   +'<div><span>Manager</span><b>'+esc(a.reportsTo||'None named')+'</b></div>'
+   +'<div><span>Backup</span><b>'+esc(backup||'None named')+'</b></div>'
+   +'<div><span>Working for</span><b>'+(ln?esc(coName(ln.to))+' until '+esc(ln.until):'Home company')+'</b></div>'
+   +'<div><span>Onboarding</span><b>'+ob.done+' of '+ob.total+'</b></div><div><span>Review</span>'+chip+'</div></div>';
+  if(ln)h+='<p class="hint">On loan: '+esc(ln.reason)+'</p>';
+  h+='<div class="ctlbtns"><button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+id+'">Lend…</button><button class="btn small" data-act="mv-open" data-kind="move" data-id="'+id+'">Move for good…</button>'
+   +(ln?'<button class="btn small" data-act="loan-end" data-id="'+id+'">Return now</button>':'')
+   +'<button class="btn small" data-act="bench-toggle" data-id="'+id+'">'+(a.bench?'Take off the shared bench':'Put on the shared bench')+'</button></div>';
+  h+='<div class="fld"><label>Onboarding checklist</label><div class="checks">'+ONBOARDING.map(function(o:any,i:number){var cid='onb-'+id+'-'+i;return '<label for="'+cid+'"><input type="checkbox" id="'+cid+'" data-onb="'+id+'" value="'+esc(o)+'"'+((a.hr&&a.hr.onboarding&&a.hr.onboarding[o])?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div></div>';
+  h+='<div class="fld"><label>Record a review for '+esc(first)+'</label><div class="two"><select id="rv-r-'+id+'" aria-label="Rating">'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(n===4?' selected':'')+'>'+n+' of 5</option>'}).join('')+'</select><input type="text" id="rv-n-'+id+'" placeholder="A line on how the work went" aria-label="Review note"></div><div class="ctlbtns"><button class="btn small" data-act="rv-add" data-id="'+id+'">Record review</button></div></div>';
+  var rv=((a.hr&&a.hr.reviews)||[]).slice(-3).reverse();
+  if(rv.length)h+='<ul class="cl" style="max-height:none">'+rv.map(function(r:any){return '<li><b>'+esc(r.at)+'</b> '+r.rating+' of 5 <span class="hint">'+esc(r.note||'')+'</span></li>'}).join('')+'</ul>';
+  h+='<details><summary>Job description</summary><pre class="jd">'+esc(jdText(a))+'</pre><button class="btn small" data-act="copy-jd" data-id="'+id+'">Copy job description</button></details>';
+  var cl=(a.changeLog||[]).slice(-8).reverse();
+  h+='<details><summary>Change log · '+(a.changeLog||[]).length+'</summary>'+(cl.length?'<ul class="cl" style="max-height:none">'+cl.map(function(c:any){return '<li><b>'+esc(new Date(c.at).toISOString().slice(0,10))+'</b> '+esc(c.text)+'</li>'}).join('')+'</ul>':'<p class="hint">Nothing recorded yet. Edits, moves, loans, bench changes and reviews are logged here.</p>')+'</details></section>';
+  return h;
+}
 function trackerView(list){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
   if(!list.length)return emptyHTML();
@@ -1323,6 +1429,7 @@ function overviewView(list){
     if(lv.prs>3)needs.unshift({title:'Clear open pull requests',why:' '+lv.prs+' are open and the limit is 3.'});
     needs=needs.slice(0,8);
   }
+  needs=needs.concat(orgNeeds(list));
   var h='<div class="ov"><div class="ov-hero'+(stalled?'':' ok')+'"><h2>'+esc(head)+'</h2><p>'+esc(sub)+'</p></div>';
   h+='<div class="ov-tiles"><div class="ov-tile"><b>'+pct+'%</b><span>of tickets done ('+D+' of '+A+')</span></div>'
    +'<div class="ov-tile"><b>'+O+'</b><span>still open</span></div>'
@@ -1814,11 +1921,13 @@ function saveEdit(){
   var e=S.edit;if(!e)return;var f=e.f;
   if(!String(f.name||'').trim()){toast('Name is required');return}
   mutate(e.id,function(a){
+    var before=JSON.parse(JSON.stringify(a));before.brain=before.brain||brainOf(a);
     ['name','role','level','reportsTo','status','purpose','handsOff','reads'].forEach(function(k){if(f[k]!=null)a[k]=String(f[k]).trim()});
     ['responsibilities','may','mustNot','requirements'].forEach(function(k){a[k]=lines(f[k])});
     a.tools=String(f.tools||'').split(',').map(function(x){return x.trim()}).filter(Boolean);
     a.model=f.model||'';a.modelPlanned=f.modelPlanned||'';
     if(f.brain)a.brain={own:!!f.brain.own,memory:f.brain.memory.slice(),note:String(f.brain.note||'').trim()};
+    diffChanges(before,a).forEach(function(tx:any){logChange(a,tx)});
   });
   S.edit=null;render();toast('Saved');
 }
@@ -1842,7 +1951,7 @@ function guardLines0(a: any): string[] { var g=appliedTo(a),o: string[]=[]; if(a
 setInterval(function(){
   if(!S.loaded)return;
   var ch=false;
-  S.agents.forEach(function(a:any){if(restExpired(a)){a.status='active';delete a.restUntil;logStatus(a,'active','Rest ended');persist('agents',a.id,a);syncPause(a);ch=true}});
+  S.agents.forEach(function(a:any){if(expireLoan(a)){persist('agents',a.id,a);ch=true}if(restExpired(a)){a.status='active';delete a.restUntil;logStatus(a,'active','Rest ended');persist('agents',a.id,a);syncPause(a);ch=true}});
   if(ch){render();toast('A rest ended. The agent is active again.')}
   else if(S.agents.some(function(a:any){return a.status==='resting'})&&!S.ctl&&!S.edit&&!S.chat&&!S.wizard&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render();
 },30000);
@@ -1875,6 +1984,7 @@ render();
   },function(){});
   DB.doc('meta/ext').onSnapshot(function(d:any){S.ext=d.exists?clone(d.data()):null;if(S.ext&&!S.ext.starter){S.ext.items=(S.ext.items||[]).concat(starterItems());S.ext.starter=true;saveExt(S.ext)}render()},function(){});
   DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;if(S.models&&S.models.list&&!S.models.haikuAdded&&!S.models.list.some(function(m:any){return m.id==='haiku55'})){S.models.list.push(clone(DEFAULT_MODELS.filter(function(m:any){return m.id==='haiku55'})[0]));S.models.haikuAdded=true;persistModels()}render()},function(){});
+  DB.doc('meta/org').onSnapshot(function(d:any){S.org=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/feed').onSnapshot(function(d:any){S.feed=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/report').onSnapshot(function(d:any){S.report=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/repos').onSnapshot(function(d:any){

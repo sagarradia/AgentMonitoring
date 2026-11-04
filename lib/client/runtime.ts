@@ -7,7 +7,7 @@
    No request bodies or chat text are logged here. */
 import type { Repo, Turn } from '../types';
 
-export const POLL_MS = 5_000;
+export const POLL_MS = 10_000;
 
 export interface CodedError { code: string; text?: string }
 function coded(code: string, text?: string): CodedError { return text == null ? { code } : { code, text } }

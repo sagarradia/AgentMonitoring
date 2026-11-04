@@ -68,3 +68,32 @@ test('every agent has brain and memory options in the editor', async ({ page }) 
   await page.click('[data-act="edit-save"]');
   await expect(page.locator('#toast')).toContainText('Saved');
 });
+
+test('org chart, companies with website field, lend an agent, review and change log', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="org"]');
+  await expect(page.locator('.orgc')).toContainText('owner of every company');
+  await page.click('.subtab[data-tab="co"]');
+  await expect(page.locator('.cd').first()).toContainText('people');
+  const site = page.locator('input[data-cosite]').first();
+  await site.fill('javascript:alert(1)');
+  await site.blur();
+  await expect(page.locator('#toast')).toContainText('https://');
+  await site.fill('https://example-synthetic.vercel.app');
+  await site.blur();
+  await expect(page.locator('a[href="https://example-synthetic.vercel.app/"]').first()).toBeVisible();
+
+  // HR file: review and onboarding, then a loan to a second company
+  await page.click('.subtab[data-tab="people"]');
+  await page.locator('[data-act="open-agent"]').first().click();
+  const panel = page.locator('.panel');
+  await expect(panel).toContainText('HR file');
+  await panel.locator('[data-act="rv-add"]').click();
+  await expect(page.locator('#toast')).toContainText('Review recorded');
+  await panel.locator('input[data-onb]').first().check();
+  await expect(panel.locator('.hr')).toContainText('Review recorded: 4 of 5');
+});

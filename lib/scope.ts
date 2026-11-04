@@ -10,7 +10,7 @@ export interface Scope {
 }
 export interface Norm { all: boolean; projects: string[]; teams: string[]; people: string[]; except: string[] }
 export type TeamOf = Record<string, string>;
-interface Who { id: string; projectId: string }
+interface Who { id: string; projectId: string; loan?: { to: string; until: string } | null }
 
 const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
 
@@ -30,7 +30,8 @@ export function toMix(n: Norm): Scope { return { mode: 'mix', all: n.all, projec
 export function applies(sc: Scope | null | undefined, a: Who, teamOf: TeamOf): boolean {
   const n = norm(sc);
   if (n.except.includes(a.id)) return false;
-  return n.all || n.projects.includes(a.projectId) || n.teams.includes(teamOf[a.id]) || n.people.includes(a.id);
+  const lent = a.loan && a.loan.until >= new Date().toISOString().slice(0, 10) ? a.loan.to : '';   // a loaned agent also follows the borrowing company's rules
+  return n.all || n.projects.includes(a.projectId) || (!!lent && n.projects.includes(lent)) || n.teams.includes(teamOf[a.id]) || n.people.includes(a.id);
 }
 export function isEmpty(sc: Scope | null | undefined): boolean {
   const n = norm(sc);

@@ -23,6 +23,14 @@ describe('automatic end of rest', () => {
     expect(((await store.get('agents', 'fv_ops'))!.data as Record<string, unknown>).status).toBe('paused');
     expect(calls.some((c) => c.startsWith('DELETE') && c.includes(encodeURIComponent('agent-paused:cto')))).toBe(true);
   });
+  it('also ends a loan whose last day has passed', async () => {
+    const store = memoryStore();
+    await store.put('agents', 'l1', { name: 'L', projectId: 'x__y', status: 'active', loan: { to: 'x__z', until: '2026-01-01', reason: 'r', at: 1 } });
+    const r = await expireRests(store, null, cfg, fetch, Date.parse('2026-06-01'));
+    expect(r.ended).toEqual([]);
+    const d = (await store.get('agents', 'l1'))!.data as Record<string, unknown>;
+    expect(d.loan).toBeUndefined(); expect(JSON.stringify(d.changeLog)).toContain('ended');
+  });
   it('works without a GitHub token', async () => {
     const store = memoryStore();
     await store.put('agents', 'a1', { name: 'A', projectId: 'x__y', status: 'resting', restUntil: 1 });
