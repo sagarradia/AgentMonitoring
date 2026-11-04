@@ -37,7 +37,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -64,7 +64,7 @@ var chains: any = {};
 function persist(coll:any,id:any,data:any){
   if(!DB)return;
   var k=coll+'/'+id,body=clone(data);
-  chains[k]=(chains[k]||Promise.resolve()).then(function(){return DB!.doc(k).set(body)}).catch(function(e:any){toast('Could not save: '+((e&&e.code)||'unknown error'))});
+  chains[k]=(chains[k]||Promise.resolve()).then(function(){return DB!.doc(k).set(body)}).catch(function(e:any){toast(e&&e.code==='conflict'?'Someone changed this on another device or tab. Showing the latest. Please redo your edit.':'Could not save: '+((e&&e.code)||'unknown error'))});
 }
 function removeDoc(coll:any,id:any){
   if(!DB)return;
@@ -126,10 +126,19 @@ function statsHTML(list:any){
    +'<div><span class="l">Goals met</span><span class="v">'+gd+' <small>of '+gt+'</small></span></div>'
    +'<div><span class="l">KPI attainment</span><span class="v">'+(avg==null?'—':avg+'<small>%</small>')+'</span></div></section>';
 }
+var GROUPS=[['progress','Progress',[['live','Now'],['tracker','History'],['report','Status report']]],['people','People',[['people','Directory'],['agents','Teams'],['lib','Library']]],['work','Work',[['tasks','Todos'],['score','Goals & KPIs']]]];
+function groupOf(tab:any){for(var i=0;i<GROUPS.length;i++)for(var j=0;j<GROUPS[i][2].length;j++)if(GROUPS[i][2][j][0]===tab)return GROUPS[i];return null}
 function tabsHTML(list){
   var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
-  var lb=list.reduce(function(s,a){return s+libCount(a)},0);var t=[['overview','Overview',''],['tracker','Tracker',''],['live','Live',''],['people','Directory',list.length],['report','Status report',list.length],['agents','Roster',list.length],['tasks','Todos',n],['score','Goals & KPIs',k],['lib','Library',lb],['caps','Capabilities',ext().items.length+ext().rules.length],['connect','Connections',modelList().length]];
-  return '<div class="tabs" role="tablist">'+t.map(function(x){return (x[0]==='live'?'<!--ctl-->':'')+'<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(S.tab===x[0])+'">'+x[1]+(x[2]!==''?'<em>'+x[2]+'</em>':'')+'</button>'+(x[0]==='live'?'<!--/ctl-->':'')}).join('')+'</div>';
+  var cur=groupOf(S.tab),cg=cur?'g:'+cur[0]:S.tab;
+  var t=[['overview','Overview',''],['g:progress','Progress',''],['g:people','People',list.length],['g:work','Work',n+k],['caps','Capabilities',ext().items.length+ext().rules.length+ext().shared.length],['connect','Connections',modelList().length]];
+  return '<div class="tabs" role="tablist">'+t.map(function(x){return '<button class="tab" role="tab" data-act="tab" data-tab="'+x[0]+'" aria-selected="'+(cg===x[0])+'">'+x[1]+(x[2]!==''?'<em>'+x[2]+'</em>':'')+'</button>'}).join('')+'</div>'+subTabsHTML(list,cur);
+}
+function subTabsHTML(list:any,g:any){
+  if(!g)return '';
+  var n=list.reduce(function(s:any,a:any){return s+(a.todos||[]).length},0),k=list.reduce(function(s:any,a:any){return s+(a.kpis||[]).length+(a.goals||[]).length},0),lb=list.reduce(function(s:any,a:any){return s+libCount(a)},0);
+  var cnt:any={people:list.length,agents:list.length,report:list.length,tasks:n,score:k,lib:lb};
+  return '<div class="subtabs" role="tablist" aria-label="'+esc(g[1])+'">'+g[2].map(function(m:any){return '<button class="subtab" role="tab" data-act="tab" data-tab="'+m[0]+'" aria-selected="'+(S.tab===m[0])+'">'+esc(m[1])+(cnt[m[0]]!=null?'<em>'+cnt[m[0]]+'</em>':'')+'</button>'}).join('')+'</div>';
 }
 function emptyHTML(){
   var scoped=S.scope!=='all';
@@ -216,7 +225,7 @@ function rosterSheet(list:any){
   if(!out)return toolbarHTML(true)+'<div class="empty"><h3>Nothing matches</h3><p>Clear the search or change the filter.</p></div>';
   return toolbarHTML(true)+'<div class="sheetwrap"><table class="sheet">'+HEAD+'<tbody>'+out+'</tbody></table></div><p class="hint">Every agent has a row, indented under its manager. Click a name to expand its goals, KRAs, KPIs and todos. Dates, statuses and readings are editable in the grid.</p>';
 }
-function todosView(list){return vsw('tasks','Board')+(isSheet('tasks')?todosSheet(list):todosCards(list))}
+function todosView(list){return '<div class="vrow"><button class="btn primary small" data-act="task-open">Add a task</button></div>'+vsw('tasks','Board')+(isSheet('tasks')?todosSheet(list):todosCards(list))}
 function sheetBlock(title:any,heads:any,rows:any){
   return '<div class="block"><h2>'+title+'</h2><div class="sheetwrap"><table class="sheet" style="min-width:760px"><thead><tr><th class="rn">#</th>'+heads.map(function(h:any){return '<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+(rows||'<tr><td class="rn"></td><td colspan="'+heads.length+'" class="hint">Nothing yet</td></tr>')+'</tbody></table></div></div>';
 }
@@ -225,7 +234,7 @@ function libView(list){return vsw('lib','Cards')+(isSheet('lib')?libSheet(list):
 function shellHTML(){
   var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
   return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
-   +'<section>'+coverBanner()+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
+   +'<section>'+coverBanner()+((groupOf(S.tab)||[])[0]==='progress'?progressHeader():'')+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
 }
 
 var LSPEC: any = {
@@ -257,7 +266,7 @@ function panelHTML(){
   if(!a)return '';
   var p=agentPct(a),id=esc(a.id);
   var h='<div class="scrim" data-act="close-panel"></div><aside class="panel" role="dialog" aria-label="Agent profile">';
-  h+='<div class="panel-head"><div><h2>'+esc(a.name)+(a.example?' <span class="tag">Example</span>':'')+'</h2><p class="role">'+esc(a.role)+'</p></div><div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button><button class="btn small" data-act="close-panel">Close</button></div></div><div class="panel-body">';
+  h+='<div class="panel-head"><div><h2>'+esc(a.name)+(a.example?' <span class="tag">Example</span>':'')+'</h2><p class="role">'+esc(a.role)+'</p></div><div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small" data-act="task-open" data-id="'+id+'">Add task</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button><button class="btn small" data-act="close-panel">Close</button></div></div><div class="panel-body">';
   h+='<div class="facts"><div><span>Project</span><b>'+esc(fullName(a.projectId))+'</b></div><div><span>Reports to</span><b>'+esc(a.reportsTo||'—')+'</b></div>'+(modelOf(a).now?'<div><span>Model</span><b>'+esc(modelOf(a).now)+' now · planned '+esc(modelOf(a).prop)+'</b></div>':'')
    +'<div><span>Status</span><select id="st-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Created</span><b>'+esc(fmtDate(a.createdAt)||'—')+(a.source==='claude'?' · drafted by Claude':a.source==='template'?' · from template':a.source==='repo'?' · imported from role file':'')+'</b></div></div>';
@@ -388,7 +397,7 @@ function render(){
   var sw=app.querySelector('.sheetwrap'),sl=sw?sw.scrollLeft:0,stp=sw?sw.scrollTop:0;
   var ms=document.scrollingElement?document.scrollingElement.scrollTop:0;
   app.innerHTML=shellHTML();
-  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML()+impHTML();
+  overlay.innerHTML=panelHTML()+chatHTML()+wizardHTML()+editHTML()+modelsHTML()+xeHTML()+ctlHTML()+impHTML()+addTaskHTML();
   [].forEach.call(overlay.querySelectorAll('.pickbox'),function(b:any,i:number){if(pbx[i])b.scrollTop=pbx[i]});
   var pb2=overlay.querySelector('.panel-body');if(pb2)pb2.scrollTop=pt;
   var mb2=overlay.querySelector('.modal-body');if(mb2)mb2.scrollTop=mt;
@@ -557,7 +566,12 @@ document.addEventListener('click',function(e){
   var el=e.target.closest('[data-act]');if(!el)return;
   var act=el.dataset.act,id=el.dataset.id,i=Number(el.dataset.i);
   if(act==='scope'){S.scope=id;render()}
-  else if(act==='tab'){S.tab=el.dataset.tab;render()}
+  else if(act==='tab'){
+    var tt=el.dataset.tab;
+    if(tt.indexOf('g:')===0){var gg=GROUPS.filter(function(x:any){return x[0]===tt.slice(2)})[0];S.tab=(gg&&S.lastSub[gg[0]])||(gg?gg[2][0][0]:'overview')}else S.tab=tt;
+    var g2=groupOf(S.tab);if(g2)S.lastSub[g2[0]]=S.tab;
+    render();
+  }
   else if(act==='toggle'){S.open[id]=!S.open[id];render()}
   else if(act==='expand-all'){agentsOf(S.scope).forEach(function(a){S.open[a.id]=true});render()}
   else if(act==='collapse-all'){S.open={};render()}
@@ -568,6 +582,15 @@ document.addEventListener('click',function(e){
   else if(act==='st'){var sst=el.dataset.st;if(sst==='active'||sst==='paused'){setStates([id],sst,{});render();toast(STATE_LABEL[sst])}else openCtl([id],sst)}
   else if(act==='st-bulk'){var bids=String(el.dataset.ids||'').split(',').filter(Boolean);if(bids.length)openCtl(bids,el.dataset.st)}
   else if(act==='ctl-close'){S.ctl=null;render()}
+  else if(act==='task-open')taskOpen(id);
+  else if(act==='task-close'){S.at=null;render()}
+  else if(act==='task-add')taskAdd();
+  else if(act==='task-all'){var tq=String(S.at&&S.at.q||'').toLowerCase();S.agents.forEach(function(a:any){if(!tq||(a.name+' '+(teamIndex()[a.id]||'')).toLowerCase().indexOf(tq)>=0)if(S.at.ids.indexOf(a.id)<0)S.at.ids.push(a.id)});render()}
+  else if(act==='task-none'){S.at.ids=[];render()}
+  else if(act==='feed-refresh')refreshFeed(false);
+  else if(act==='pg-ask'){S.pgConfirm=el.dataset.what;render()}
+  else if(act==='pg-cancel'){S.pgConfirm='';render()}
+  else if(act==='pg-do')setPause(el.dataset.what==='pause');
   else if(act==='ctl-ok')ctlApply();
   else if(act==='use-backup'){mutate(id,function(a){a.backupId=el.dataset.bk});toast('Backup saved')}
   else if(act==='live-toggle'){S.liveOpen[id]=!S.liveOpen[id];render()}
@@ -662,6 +685,8 @@ document.addEventListener('input',function(e){
   else if(t.dataset.chat!==undefined&&S.chat){S.chat.draft=t.value}
   else if(t.dataset.ef&&S.edit){S.edit.f[t.dataset.ef]=t.value}
   else if(t.dataset.ctl==='custom'&&S.ctl){S.ctl.custom=t.value}
+  else if(t.dataset.atq!==undefined&&S.at){S.at.q=t.value;render()}
+  else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
   else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
@@ -702,6 +727,8 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
+  else if(t.dataset.atid&&S.at){S.at.ids=tgl(S.at.ids,t.dataset.atid,t.checked);render()}
+  else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
   else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
   else if(t.dataset.ctlBackup){var bv=t.value;mutate(t.dataset.ctlBackup,function(a){if(bv)a.backupId=bv;else delete a.backupId})}
@@ -722,7 +749,8 @@ document.addEventListener('change',function(e){
 document.addEventListener('keydown',function(e){
   var t=e.target;
   if(e.key==='Escape'){
-    if(S.imp){S.imp=null;render()}
+    if(S.at){S.at=null;render()}
+    else if(S.imp){S.imp=null;render()}
     else if(S.xe){S.xe=null;render()}
     else if(S.edit){S.edit=null;render()}
     else if(S.modelsOpen){S.modelsOpen=false;render()}
@@ -870,7 +898,7 @@ function pcSec(t,body){return '<section class="pc-s"><h4>'+t+'</h4>'+body+'</sec
 function personCard(a,team){
   var id=esc(a.id),g=a.progress;
   var h='<div class="pc-head"><span class="av lg">'+esc(initials(a.name))+'</span><div class="grow"><h3>'+esc(a.name)+'</h3><p class="hint">'+esc(a.role||'')+'</p><p class="hint">'+esc(team)+(a.reportsTo?' · reports to '+esc(a.reportsTo):'')+'</p></div>'
-   +'<div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small" data-act="open-agent" data-id="'+id+'">Full profile</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button></div></div>';
+   +'<div class="btns"><button class="btn small" data-act="edit-open" data-id="'+id+'">Edit</button><button class="btn small" data-act="open-agent" data-id="'+id+'">Full profile</button><button class="btn small" data-act="task-open" data-id="'+id+'">Add task</button><button class="btn small primary" data-act="chat-open" data-id="'+id+'">Talk</button></div></div>';
   h+='<div class="pc-facts"><div><span>Status</span><select class="cell" id="pcs-'+id+'" data-status="'+id+'" aria-label="Status">'+statusOpts(a)+'</select></div>'
    +'<div><span>Model now</span>'+modelSel(a,'now')+'</div><div><span>Model planned</span>'+modelSel(a,'prop')+'</div>'
    +'<div><span>Work done</span><b>'+(g&&g.pct!=null?g.pct+'% ('+g.done+' of '+g.assigned+')':'No tickets of its own')+'</b></div>'
@@ -912,7 +940,7 @@ function dayDiff(a,b){return Math.round((new Date(a+'T00:00:00')-new Date(b+'T00
 function addDays(s0,n){var d=new Date(s0+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fmtShort(s0){return new Date(s0+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'})}
 /* ---------- agent controls and live status ---------- */
-function stOpt(a,x){return '<option value="'+x+'"'+((a.status||'active')===x?' selected':'')+'>'+statusLabel(x)+'</option>'}
+function stOpt(a,x){return '<option value="'+x+'"'+((a.status==='resting'?effState(a):(a.status||'active'))===x?' selected':'')+'>'+statusLabel(x)+'</option>'}
 function statusOpts(a){return ['active','paused','draft'].map(function(x){return stOpt(a,x)}).join('')+'<!--ctl-->'+['resting','revoked','withdrawn'].map(function(x){return stOpt(a,x)}).join('')+'<!--/ctl-->'}
 function clock(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
 function stChip(a){var x=effState(a);return '<span class="stc st-'+x+'">'+esc(STATE_LABEL[x])+(x==='resting'?' · back in '+esc(restLeft(a)):'')+'</span>'}
@@ -1036,7 +1064,7 @@ function taskRow(x){
 }
 function liveAgent(a,T){
   var id=esc(a.id),x=effState(a),items=(a.todos||[]).map(function(t,i){return {a:a,t:t,i:i}}),r=roll(items);
-  var h='<div class="lv-agent"><div class="lv-ah"><div class="grow"><b>'+esc(a.name)+'</b> '+stChip(a)+'<span class="hint"> '+esc(a.role||'')+'</span></div>'+ctlButtons(a)+'</div>';
+  var h='<div class="lv-agent"><div class="lv-ah"><div class="grow"><b>'+esc(a.name)+'</b> '+stChip(a)+'<span class="hint"> '+esc(a.role||'')+'</span></div><button class="btn small" data-act="task-open" data-id="'+id+'">Add task</button>'+ctlButtons(a)+'</div>';
   if(x==='withdrawn'){return h+'<span class="hint">Off the team. Its '+items.length+' ticket'+(items.length===1?'':'s')+' are not counted.</span></div>'}
   if(!items.length)return h+'<span class="hint">No tickets assigned.</span></div>';
   var shown=S.liveOpen[a.id]?items:items.filter(function(y){var s=taskState(y.t,a);return s==='running'||s==='paused'}).slice(0,6);
@@ -1064,6 +1092,106 @@ function liveView(list){
   });
   h+='<p class="hint">A bar fills when someone records progress on a ticket here or the status snapshot is refreshed; a moving stripe means running with no percentage recorded. Pause, rest, revoke and withdraw record your decision on this page and in each agent\'s chat; they do not stop a scheduled run elsewhere.</p></div>';
   return h;
+}
+/* ---------- add a task ---------- */
+function taskOpen(id:any){
+  S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.edit=null;S.xe=null;S.imp=null;S.modelsOpen=false;
+  S.at={ids:id?[id]:[],text:'',due:'',note:'',state:'todo',pct:'',q:''};render();
+  var t=byId('at-text');if(t)t.focus();
+}
+function addTaskHTML(){
+  var c=S.at;if(!c)return '';
+  var tm=teamIndex(),q=String(c.q||'').toLowerCase();
+  var shown=S.agents.slice().sort(function(a:any,b:any){return String(tm[a.id]||'').localeCompare(String(tm[b.id]||''))||String(a.name).localeCompare(String(b.name))}).filter(function(a:any){return !q||(a.name+' '+(tm[a.id]||'')).toLowerCase().indexOf(q)>=0});
+  var h='<div class="scrim" data-act="task-close"></div><div class="modal" role="dialog" aria-label="Add a task"><div class="modal-head"><h2>Add a task</h2><p>'+(c.ids.length===1?'For '+esc((S.agents.filter(function(a:any){return a.id===c.ids[0]})[0]||{}).name||'one agent'):c.ids.length?'For '+c.ids.length+' agents':'Choose who it is for')+'</p></div><div class="modal-body">';
+  h+='<div class="fld"><label for="at-text">What needs doing</label><textarea id="at-text" rows="3" data-atf="text" placeholder="For example Review the open pull requests">'+esc(c.text)+'</textarea></div>'
+   +'<div class="fld"><label for="at-due">Due date (optional)</label><input type="date" id="at-due" data-atf="due" value="'+esc(c.due)+'"></div>'
+   +'<div class="fld"><label for="at-state">Start as</label><select id="at-state" data-atf="state"><option value="todo"'+(c.state==='todo'?' selected':'')+'>Queued (not started)</option><option value="doing"'+(c.state==='doing'?' selected':'')+'>Running (already started)</option></select></div>'
+   +'<div class="fld"><label for="at-note">Note (optional)</label><input type="text" id="at-note" data-atf="note" value="'+esc(c.note)+'" placeholder="Anything the agent should know"></div>'
+   +'<div class="fld"><label for="at-q">Who is it for? <span class="hint">'+c.ids.length+' chosen</span></label><input type="text" id="at-q" data-atq placeholder="Search by name or team" value="'+esc(c.q)+'"><div class="pickbox">'
+   +(shown.map(function(a:any){return '<label><input type="checkbox" data-atid="'+esc(a.id)+'"'+(c.ids.indexOf(a.id)>=0?' checked':'')+'> '+esc(a.name)+' <small class="hint">'+esc(tm[a.id]||'')+'</small></label>'}).join('')||'<span class="hint">No one matches.</span>')+'</div>'
+   +'<div class="ctlbtns"><button class="btn small" data-act="task-all">Select everyone shown</button><button class="btn small" data-act="task-none">Clear</button></div></div>'
+   +'<p class="hint">Each agent gets its own copy to track. To give one task to a project or team and widen or narrow it later, use Capabilities, Shared items.</p></div>'
+   +'<div class="modal-foot"><button class="btn" data-act="task-close">Cancel</button><button class="btn primary" data-act="task-add">Add task'+(c.ids.length>1?' to '+c.ids.length+' agents':'')+'</button></div></div>';
+  return h;
+}
+function taskAdd(){
+  var c=S.at;if(!c)return;
+  if(!String(c.text).trim()){toast('Write the task');return}
+  if(!c.ids.length){toast('Choose who it is for');return}
+  var now=Date.now(),n=0;
+  c.ids.forEach(function(id:any){
+    var a=S.agents.filter(function(x:any){return x.id===id})[0];if(!a)return;
+    var t:any={text:String(c.text).trim(),status:c.state==='doing'?'doing':'todo',addedBy:'founder',updatedAt:now};
+    if(c.due)t.due=c.due;if(String(c.note).trim())t.note=String(c.note).trim();
+    a.todos=(a.todos||[]).concat([t]);persist('agents',a.id,a);n++;
+  });
+  S.at=null;render();toast('Added to '+n+' agent'+(n===1?'':'s'));
+}
+/* ---------- GitHub feed and the real pause switch ---------- */
+function liveInfo(){
+  var f=S.feed,prs=0;
+  if(f&&f.repos)Object.keys(f.repos).forEach(function(k:any){prs+=(f.repos[k]&&f.repos[k].openPRs)||0});
+  return {live:!!(f&&f.fetchedAt),prs:prs,paused:!!(S.control&&S.control.paused)};
+}
+var FEED_ERR:any={no_access:'the GitHub token cannot read this repo',needs_reauth:'GitHub rejected the token',upstream_error:'GitHub did not answer',bad_repo:'the repo name is not valid'};
+function agoMs(ms:any){var m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' days ago'}
+function progressHeader(){
+  var f=S.feed,c=S.control,h='<div class="pg-head">';
+  // the real pause switch
+  h+='<div class="pg-card"><h3>Agent control</h3>';
+  if(!S.canFeed)h+='<p class="hint">GitHub is not connected to this site, so it cannot pause or resume the agents for real. Add a <span class="mono">GITHUB_TOKEN</span> in Vercel, then redeploy.</p>';
+  else if(!c)h+='<p class="hint">Checking GitHub…</p>';
+  else if(c.error)h+='<p class="hint bad">'+esc(c.error==='needs_write'?'The token can read but not change the Agent control issue. Give it Issues: read and write on '+c.repo+'.':c.error==='no_access'?'The token cannot see '+c.repo+'.':'Could not reach GitHub ('+c.error+').')+'</p>';
+  else{
+    h+='<p><span class="stc '+(c.paused?'st-revoked':'st-active')+'">'+(c.paused?'Paused':'Allowed to run')+'</span> <span class="hint">'+(c.paused?'The label '+esc(c.label)+' is on '+esc(c.repo)+' issue #'+c.issue+'. Agents stop at the start of their next run.':'No pause label on '+esc(c.repo)+' issue #'+c.issue+'.')+'</span></p>';
+    if(S.pgConfirm)h+='<p><b>'+(S.pgConfirm==='pause'?'Pause every agent?':'Let every agent run again?')+'</b> This changes the real label on GitHub.</p><div class="ctlbtns"><button class="btn small primary" data-act="pg-do" data-what="'+esc(S.pgConfirm)+'">'+(S.pgConfirm==='pause'?'Yes, pause all':'Yes, resume all')+'</button><button class="btn small" data-act="pg-cancel">Cancel</button></div>';
+    else h+='<div class="ctlbtns"><button class="btn small'+(c.paused?' primary':'')+'" data-act="pg-ask" data-what="'+(c.paused?'resume':'pause')+'">'+(c.paused?'Resume all agents':'Pause all agents')+'</button></div>';
+  }
+  h+='<p class="hint">This is the switch the agents check. The Pause, Rest and Revoke buttons on each person only record your decision.</p></div>';
+  // the ticket feed
+  h+='<div class="pg-card"><h3>Ticket status from GitHub</h3>';
+  if(!S.canFeed)h+='<p class="hint">Not connected. The numbers are the snapshot of '+esc((S.report&&S.report.asOf)||'the last import')+'.</p>';
+  else{
+    h+='<p class="hint">'+(f&&f.fetchedAt?'Refreshed '+esc(agoMs(f.fetchedAt))+'. It refreshes by itself every few minutes while this page is open, and once a day otherwise.':'Not refreshed yet. The numbers are the snapshot of '+esc((S.report&&S.report.asOf)||'the last import')+'.')+'</p>';
+    if(f&&f.repos)Object.keys(f.repos).forEach(function(k:any){
+      var r=f.repos[k];
+      h+='<p class="hint">'+esc(k.split('/')[1])+': '+(r.ok?(r.issues+' tickets, '+r.matched+' matched to an agent'+(r.openPRs?', '+r.openPRs+' pull request'+(r.openPRs===1?'':'s')+' open':'')+(r.unmatched?'. '+r.unmatched+' open tickets have no agent here':'')):'<span class="bad">'+esc(FEED_ERR[r.error]||r.error||'failed')+'</span>')+'</p>';
+    });
+    h+='<div class="ctlbtns"><button class="btn small" data-act="feed-refresh"'+(S.feedBusy?' disabled':'')+'>'+(S.feedBusy?'Refreshing…':'Refresh now')+'</button></div>';
+  }
+  return h+'</div></div>';
+}
+async function refreshFeed(quiet:any){
+  if(!S.canFeed||S.feedBusy)return;
+  S.feedBusy=true;if(!quiet)render();
+  try{
+    var r=await fetch('/api/feed',{method:'POST',credentials:'same-origin'});
+    if(!r.ok)throw new Error('http_'+r.status);
+    var j=await r.json();S.feed=j;DB&&DB.refresh&&DB.refresh();
+    if(!quiet)toast('Updated from GitHub');
+  }catch(e:any){if(!quiet)toast('Could not refresh from GitHub')}
+  S.feedBusy=false;render();
+}
+async function loadControl(){
+  if(!S.canFeed)return;
+  try{
+    var r=await fetch('/api/control',{credentials:'same-origin',cache:'no-store'});
+    if(!r.ok)return;
+    var j=await r.json(),a=JSON.stringify(S.control);
+    S.control=j.configured===false?null:j;
+    if(JSON.stringify(S.control)!==a)render();
+  }catch(e){}
+}
+async function setPause(paused:any){
+  S.pgConfirm='';
+  try{
+    var r=await fetch('/api/control',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({paused:paused})});
+    var j=await r.json();
+    if(j&&typeof j.paused==='boolean'){S.control=j;toast(paused?'All agents paused':'Agents may run again')}
+    else{S.control=j&&j.error?Object.assign({},S.control||{},j):S.control;toast(j&&j.error==='needs_write'?'The token cannot change that issue (needs Issues: write)':'Could not change it')}
+  }catch(e){toast('Could not reach GitHub')}
+  render();
 }
 function trackerView(list){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
@@ -1112,13 +1240,22 @@ function overviewView(list){
   if(!list.length)return emptyHTML();
   var rp=S.report||{},T=buildTree(list),A=0,D=0,O=0,idle=0,blocked=0;
   list.forEach(function(a){var g=a.progress;if(!g)return;A+=g.assigned;D+=g.done;O+=g.open;if(g.idleDays>idle)idle=g.idleDays;(a.todos||[]).forEach(function(t){if(/^Blocked/.test(t.note||''))blocked++})});
-  var pct=A?Math.round(100*D/A):0,stalled=idle>7&&O>0;
-  var h='<div class="ov"><div class="ov-hero'+(stalled?'':' ok')+'"><h2>'+esc(rp.headline||(A?D+' of '+A+' tickets are done ('+pct+'%).':'No work recorded yet.'))+'</h2><p>'+esc(rp.sub||'')+'</p></div>';
+  var pct=A?Math.round(100*D/A):0,stalled=idle>7&&O>0,lv=liveInfo(),needs=rp.needsYou||[];
+  var head=rp.headline||(A?D+' of '+A+' tickets are done ('+pct+'%).':'No work recorded yet.'),sub=rp.sub||'';
+  if(lv.live){
+    head=stalled?'The agent team has not worked for '+idle+' days.':(A?D+' of '+A+' tickets are done ('+pct+'%).':'No work recorded yet.');
+    sub=(lv.prs>3?lv.prs+' pull requests are open and the rule allows three, so the agents cannot start new work. ':lv.prs?lv.prs+' pull request'+(lv.prs===1?' is':'s are')+' open. ':'')+(lv.paused?'Agents are paused (label on the Agent control issue).':'');
+    needs=[];
+    list.forEach(function(a:any){(a.todos||[]).forEach(function(t:any){if(t.status!=='done'&&/^Needs the founder/.test(t.note||''))needs.push({title:String(t.text||'').replace(/\s*\[[^\]]*\]\s*$/,''),why:' Waiting for you. ('+a.name+')'})})});
+    if(lv.prs>3)needs.unshift({title:'Clear open pull requests',why:' '+lv.prs+' are open and the limit is 3.'});
+    needs=needs.slice(0,8);
+  }
+  var h='<div class="ov"><div class="ov-hero'+(stalled?'':' ok')+'"><h2>'+esc(head)+'</h2><p>'+esc(sub)+'</p></div>';
   h+='<div class="ov-tiles"><div class="ov-tile"><b>'+pct+'%</b><span>of tickets done ('+D+' of '+A+')</span></div>'
    +'<div class="ov-tile"><b>'+O+'</b><span>still open</span></div>'
    +'<div class="ov-tile"><b>'+blocked+'</b><span>stuck behind something else</span></div>'
    +'<div class="ov-tile"><b class="'+(stalled?'bad':'')+'">'+(idle||'—')+'</b><span>days since any agent worked</span></div></div>';
-  if(rp.needsYou&&rp.needsYou.length)h+='<div><h3>What needs you</h3><ol class="ov-need">'+rp.needsYou.map(function(x){return '<li><b>'+esc(x.title)+'</b>'+esc(x.why||'')+'</li>'}).join('')+'</ol></div>';
+  if(needs.length)h+='<div><h3>What needs you</h3><ol class="ov-need">'+needs.map(function(x){return '<li><b>'+esc(x.title)+'</b>'+esc(x.why||'')+'</li>'}).join('')+'</ol></div>';
   h+='<div><h3>How each team is doing</h3><div class="ov-teams">';
   T.roots.forEach(function(r){
     var a2=0,d2=0,o2=0,n=0,id2=0;
@@ -1628,7 +1765,12 @@ render();
   DB=createDb();DL=createDownloads();S.canImport=true;
   var cfg=await loadConfig();
   if(cfg.chat)SAMPLE=createSample();
-  MCP=cfg.github;
+  MCP=cfg.github;S.canFeed=!!cfg.github;
+  if(S.canFeed){
+    loadControl();setInterval(function(){if(!document.hidden)loadControl()},60000);
+    setTimeout(function(){if(!S.feed||!S.feed.fetchedAt||Date.now()-S.feed.fetchedAt>10*60000)refreshFeed(true)},4000);
+    setInterval(function(){if(!document.hidden)refreshFeed(true)},5*60000);
+  }
   DB.collection('agents').onSnapshot(function(snap:any){
     var next=snap.docs.map(function(d:any){var o=clone(d.data());o.id=d.id;return o}).sort(function(a:any,b:any){return (b.createdAt||0)-(a.createdAt||0)});
     var sig=JSON.stringify(next);
@@ -1647,6 +1789,7 @@ render();
   },function(){});
   DB.doc('meta/ext').onSnapshot(function(d:any){S.ext=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;render()},function(){});
+  DB.doc('meta/feed').onSnapshot(function(d:any){S.feed=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/report').onSnapshot(function(d:any){S.report=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/repos').onSnapshot(function(d:any){
     if(d.exists){var v=d.data();if(v&&Array.isArray(v.items)&&v.items.length){S.repos=keepKnown(clone(v.items));S.syncedAt=v.syncedAt||null;render()}}

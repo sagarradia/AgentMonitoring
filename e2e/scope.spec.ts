@@ -65,7 +65,7 @@ test('shared todo: widen, leave one out, narrow; give and remove on a person; ad
   expect(kept).toBeTruthy();
 
   // On a person's card: remove a guardrail for one person, then give it back.
-  await page.click('.tab[data-tab="people"]');
+  await page.click('.tab[data-tab="g:people"]');
   await page.click(`[data-act="dirsel"][data-id="${CTO}"]`);
   const ap = page.locator('.ap');
   await expect(ap).toContainText('Never log content');

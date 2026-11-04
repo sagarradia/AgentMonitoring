@@ -30,7 +30,7 @@ async function api(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 /* ---------- db ---------- */
-interface RawDoc { id: string; data: Record<string, unknown> }
+interface RawDoc { id: string; data: Record<string, unknown>; updated_at?: string }
 export interface Snap { id: string; exists: boolean; data(): any }
 export interface QuerySnap { docs: Snap[] }
 type Unsub = () => void;
@@ -42,6 +42,8 @@ export interface DB {
     onSnapshot(cb: (d: Snap) => void, err?: (e: unknown) => void): Unsub;
   };
   collection(name: string): { onSnapshot(cb: (s: QuerySnap) => void, err?: (e: unknown) => void): Unsub };
+  /** Fetch everything again now instead of waiting for the next poll. */
+  refresh(): void;
 }
 
 function splitPath(p: string): [string, string] {
@@ -56,11 +58,21 @@ export function createDb(pollMs = POLL_MS): DB {
   let pending = 0, writes = 0;
   const pollers = new Set<() => void>();
 
+  /* The version of each document this page last saw. A PUT sends it, and the server refuses the write with 409
+     when someone else saved the document since, so two devices cannot silently overwrite each other. */
+  const seen = new Map<string, string>();
   async function write(path: string, init: RequestInit) {
     const [c, id] = splitPath(path);
     pending++; writes++;
-    try { await api('/api/db/' + enc(c) + '/' + enc(id), init) }
-    finally { pending--; writes++ }
+    try {
+      const v = init.method === 'PUT' ? seen.get(path) : undefined;
+      const r = (await api('/api/db/' + enc(c) + '/' + enc(id), v ? { ...init, headers: { ...(init.headers as Record<string, string>), 'x-base-version': v } } : init)) as { updated_at?: string } | undefined;
+      if (init.method === 'PUT' && r && r.updated_at) seen.set(path, r.updated_at);
+      if (init.method === 'DELETE') seen.delete(path);
+    } catch (e) {
+      if ((e as CodedError).code === 'conflict') setTimeout(() => pollers.forEach((t) => t()), 50);   // fetch the newer version now
+      throw e;
+    } finally { pending--; writes++ }
   }
 
   function poll<T>(load: () => Promise<T>, deliver: (v: T) => void, err?: (e: unknown) => void): Unsub {
@@ -94,6 +106,7 @@ export function createDb(pollMs = POLL_MS): DB {
   const snapOf = (d: RawDoc): Snap => ({ id: d.id, exists: true, data: () => d.data });
 
   return {
+    refresh() { pollers.forEach((t) => t()) },
     doc(path) {
       const [c, id] = splitPath(path);
       return {
@@ -103,7 +116,7 @@ export function createDb(pollMs = POLL_MS): DB {
           return poll(async () => {
             try { return (await api('/api/db/' + enc(c) + '/' + enc(id))) as RawDoc }
             catch (e) { if ((e as CodedError).code === 'not_found') return null; throw e }
-          }, (d) => cb(d ? snapOf(d) : { id, exists: false, data: () => undefined }), err);
+          }, (d) => { if (d && d.updated_at) seen.set(path, d.updated_at); cb(d ? snapOf(d) : { id, exists: false, data: () => undefined }) }, err);
         },
       };
     },
@@ -111,7 +124,7 @@ export function createDb(pollMs = POLL_MS): DB {
       return {
         onSnapshot(cb, err) {
           return poll(async () => ((await api('/api/db/' + enc(name))) as { docs: RawDoc[] }).docs,
-            (docs) => cb({ docs: docs.map(snapOf) }), err);
+            (docs) => { for (const d of docs) if (d.updated_at) seen.set(name + '/' + d.id, d.updated_at); cb({ docs: docs.map(snapOf) }) }, err);
         },
       };
     },

@@ -38,6 +38,13 @@ export async function PUT(req: Request, ctx: Ctx) {
   const body = await readJson(req, MAX_DOC_BYTES);
   if (!isPlainObject(body)) return fail(400, 'bad_body');
   try {
+    /* Optional guard against overwriting a newer edit from another device: the page sends the version it last saw.
+       The check and the write are two steps, so two requests landing in the same instant can still both pass. */
+    const base = req.headers.get('x-base-version');
+    if (base) {
+      const cur = await getStore().get(t.collection, t.id);
+      if (cur && cur.updated_at !== base) return fail(409, 'conflict');
+    }
     const doc = await getStore().put(t.collection, t.id, body);
     return json({ id: doc.id, updated_at: doc.updated_at });
   } catch (e) {

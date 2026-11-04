@@ -141,3 +141,11 @@ Every agent can be activated, paused, rested (with a timer that ends by itself),
 
 ## Scope levels, shared items and downloaded files (November 2026)
 Guardrails, skills and plugins, and the new Shared items (todo, KPI, goal, memory note, document) can apply to the whole organisation, projects, teams and named individuals, in any mix, with individuals left out. Todos, KPIs and goals are copied onto each agent so each tracks its own progress; narrowing removes copies without progress and keeps the ones with progress. Memory notes and documents are read when an agent chats. A person's card lists what applies to them, with Remove for this person and Give this person something. Capabilities can add skills, plugins and connectors from downloaded files (.zip, .skill, SKILL.md, plugin.json, marketplace.json, .mcp.json): the files are read in the browser and never run, and connector commands and keys are not saved.
+
+## Live feed, real pause switch, grouped tabs
+
+- Tabs are grouped: Overview, Progress (Now, History, Status report), People (Directory, Teams, Library), Work (Todos, Goals & KPIs), Capabilities, Connections.
+- **Add a task** works for any agent (person card, Teams panel, Now tab, Work > Todos).
+- With `GITHUB_TOKEN` set, the site reads GitHub issues itself (on open, every 5 minutes, and daily by cron) and updates ticket status. Optional `CRON_SECRET` protects the daily cron.
+- **Pause all agents** adds or removes the `agents-paused` label on the Agent control issue. This needs the token to have Issues read and write. Per-person Pause/Rest/Revoke only record a decision.
+- Saves check the last-seen version; if another device changed the same item first, you get a message and the latest copy.
