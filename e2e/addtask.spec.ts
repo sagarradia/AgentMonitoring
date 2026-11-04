@@ -233,3 +233,34 @@ test('designation list follows department and seniority', async ({ page }) => {
   await page.selectOption('#rq-g', 'head');
   await expect(page.locator('#rq-j')).toContainText('Chief Marketing Officer');
 });
+
+test('group repos under one company: choose the repos, they leave the list as their own company', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page.locator('.mode[aria-selected="true"]')).toContainText('Companies');
+  await expect(page.locator('.gc .cd').first()).toBeVisible();
+  await page.waitForTimeout(500);
+  const before = await page.locator('.gc .cd').count();
+  expect(before).toBeGreaterThanOrEqual(9);
+  await page.fill('#nc-n', 'Money Group');
+  const form = page.locator('.cd', { hasText: 'Start a new company' });
+  await form.locator('label.chk', { hasText: 'trvo' }).locator('input').check();
+  await form.locator('label.chk', { hasText: 'pocketfund' }).locator('input').check();
+  await page.click('[data-act="nc-add"]');
+  await expect(page.locator('#toast')).toContainText('Company created');
+  // two repos left the list and one company joined: one fewer card
+  await expect(page.locator('.gc .cd')).toHaveCount(before - 1);
+  const card = page.locator('.gc .cd', { has: page.locator('.cd-h b', { hasText: /^Money Group$/ }) });
+  await expect(card.locator('input[data-corepo]:checked')).toHaveCount(2);
+  // clicking a member repo shows its company only
+  await page.locator('.scope', { hasText: 'trvo' }).click();
+  await expect(page.locator('.gc .cd')).toHaveCount(1);
+  await expect(page.locator('.gc .cd')).toContainText('Money Group');
+  await expect(page.locator('h1')).toContainText('Money Group');
+  // take one back out: it becomes its own company again
+  await page.locator('.scope', { hasText: 'All projects' }).click();
+  await page.locator('.gc .cd', { has: page.locator('.cd-h b', { hasText: /^Money Group$/ }) }).locator('label.chk', { hasText: 'trvo' }).locator('input').uncheck();
+  await expect(page.locator('.gc .cd')).toHaveCount(before);
+  await expect(page.locator('body')).not.toContainText('[object Object]');
+});
