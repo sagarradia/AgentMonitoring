@@ -24,11 +24,11 @@ describe('new company', () => {
 
 describe('hire read from chat', () => {
   it('accepts a known department and a reason', () => {
-    expect(cleanHire({ dept: 'Marketing', designation: 'junior', note: 'Launch content is behind' })).toEqual({ dept: 'Marketing', designation: 'junior', note: 'Launch content is behind' });
+    expect(cleanHire({ dept: 'Marketing', seniority: 'junior', note: 'Launch content is behind' })).toEqual({ dept: 'Marketing', seniority: 'junior', jobTitle: '', note: 'Launch content is behind' });
   });
-  it('drops unknown departments and thin reasons, defaults the designation', () => {
+  it('drops unknown departments and thin reasons, defaults the seniority', () => {
     expect(cleanHire({ dept: 'Astrology', note: 'Need a stargazer please' })).toBeNull();
     expect(cleanHire({ dept: 'Sales', note: 'short' })).toBeNull();
-    expect(cleanHire({ dept: 'Sales', designation: 'boss', note: 'Pipeline needs a closer' })?.designation).toBe('agent');
+    expect(cleanHire({ dept: 'Sales', designation: 'boss', note: 'Pipeline needs a closer' })?.seniority).toBe('agent');
   });
 });

@@ -403,3 +403,11 @@ pre.jd{white-space:pre-wrap;font:12.5px/1.5 var(--mono);background:var(--surface
 .hr details{margin-top:8px}.hr summary{cursor:pointer;font-weight:600}
 
 td.bad{color:#9b1c1c;font-weight:600}
+
+/* main modes: Companies, Projects, Agents */
+.modes{display:flex;gap:6px;margin:4px 0 10px;flex-wrap:wrap}
+.mode{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 18px;font:600 14px var(--sans);color:var(--muted);cursor:pointer}
+.mode:hover{background:var(--surface2)}
+.mode[aria-selected="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.mode em{font-style:normal;font:500 11px var(--mono);margin-left:8px;opacity:.8}
+.chips .chip.topic{background:var(--accent-soft);color:var(--accent)}

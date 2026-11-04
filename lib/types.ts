@@ -4,7 +4,7 @@
 export type Collection = 'agents' | 'projects' | 'chats' | 'meta';
 export const COLLECTIONS: readonly Collection[] = ['agents', 'projects', 'chats', 'meta'];
 
-export interface Repo { full_name: string; url: string; pushed_at: string; visibility: string }
+export interface Repo { full_name: string; url: string; pushed_at: string; visibility: string; description?: string; homepage?: string; language?: string; topics?: string[] }
 
 export interface Goal { text: string; horizon?: string; done?: boolean; due?: string; note?: string }
 export interface Kra { area: string; outcome: string; weight: number }

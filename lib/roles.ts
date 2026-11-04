@@ -28,20 +28,47 @@ export const DEPT_PROFILES: Record<string, DeptProfile> = {
   Other: { duties: ['Do the agreed work and report back'], requirements: ['Follows the brief'], tools: ['Slack', 'Google Drive'], skills: [], memory: mem(0, 1), mustNot: [], approvals: [OUT, MONEY, DEL], plugins: ['memory'] },
 };
 
-export interface Designation { id: string; label: string; level: string; own: boolean; leader: boolean; titleOf: (dept: string) => string; duties: string[]; approvals: string[]; blurb: string }
-export const DESIGNATIONS: Designation[] = [
-  { id: 'head', label: 'Head of department', level: 'Head', own: true, leader: true, titleOf: (d) => (d === 'Leadership' ? 'Chief of Staff' : 'Head of ' + d), blurb: 'Owns the plan, the team and its requisitions. Gets its own brain and the strongest model.', duties: ['Own the department\'s plan, goals and budget', 'Raise requisitions for roles the department needs', 'Review the team\'s work and run their reviews'], approvals: [MONEY, ACC] },
-  { id: 'lead', label: 'Lead', level: 'Agent', own: false, leader: false, titleOf: (d) => d + ' Lead', blurb: 'Guides juniors and reviews their work.', duties: ['Guide the juniors and review their work', 'Break work into small tickets'], approvals: [] },
-  { id: 'agent', label: 'Specialist', level: 'Agent', own: false, leader: false, titleOf: (d) => d + ' Specialist', blurb: 'Does the work in this department.', duties: [], approvals: [] },
-  { id: 'junior', label: 'Junior', level: 'Junior', own: false, leader: false, titleOf: (d) => d + ' Junior', blurb: 'Takes small, well-defined tasks and asks when unsure. Uses the lightest model that is accurate enough.', duties: ['Work on small, well-defined tasks and ask when unsure'], approvals: [DEL, OUT] },
+export interface Seniority { id: string; label: string; level: string; own: boolean; leader: boolean; duties: string[]; approvals: string[]; blurb: string }
+/** Seniority shows effort and leadership: how much the agent owns and how much it is trusted to do alone. */
+export const SENIORITIES: Seniority[] = [
+  { id: 'head', label: 'Head', level: 'Head', own: true, leader: true, blurb: 'Owns the plan, the team and its requisitions. Gets its own brain and the strongest model.', duties: ['Own the department\'s plan, goals and budget', 'Raise requisitions for roles the department needs', 'Review the team\'s work and run their reviews'], approvals: ['Spending money or changing billing'] },
+  { id: 'lead', label: 'Lead', level: 'Agent', own: false, leader: false, blurb: 'Guides juniors and reviews their work.', duties: ['Guide the juniors and review their work', 'Break work into small tickets'], approvals: [] },
+  { id: 'agent', label: 'Experienced', level: 'Agent', own: false, leader: false, blurb: 'Does the work alone and asks only when needed.', duties: [], approvals: [] },
+  { id: 'junior', label: 'Junior', level: 'Junior', own: false, leader: false, blurb: 'Takes small, well-defined tasks and asks when unsure. Uses the lightest model that is accurate enough.', duties: ['Work on small, well-defined tasks and ask when unsure'], approvals: ['Deleting data', 'Sending messages outside the team'] },
 ];
-export const designationOf = (id: string) => DESIGNATIONS.find((d) => d.id === id) || DESIGNATIONS[2];
+export const seniorityOf = (id: string) => SENIORITIES.find((d) => d.id === id) || SENIORITIES[2];
 
-export interface Resolved { dept: string; designation: Designation; title: string; level: string; brainOwn: boolean; leader: boolean; duties: string[]; requirements: string[]; tools: string[]; skills: Array<[string, string]>; memory: string[]; mustNot: string[]; approvals: string[]; plugins: string[] }
+/** Job designations per department and seniority (the first is the default). Juniors use the experienced titles with "Junior". */
+const T: Record<string, { head: string[]; lead: string[]; agent: string[] }> = {
+  Leadership: { head: ['Chief of Staff', 'Founder', 'Chief Operating Officer'], lead: ['Programme Manager', 'Chief of Staff Assistant'], agent: ['Executive Assistant', 'Programme Coordinator'] },
+  Product: { head: ['Head of Product', 'Chief Product Officer'], lead: ['Product Manager', 'Senior Business Analyst'], agent: ['Business Analyst', 'Spec Writer', 'Backlog Groomer'] },
+  Engineering: { head: ['Head of Engineering', 'Chief Technology Officer', 'Engineering Manager'], lead: ['Tech Lead', 'Technical Architect', 'Engineering Manager'], agent: ['Developer', 'Backend Developer', 'Frontend Developer', 'Mobile Developer', 'DevOps Engineer', 'Release Engineer'] },
+  Security: { head: ['Head of Security', 'Chief Information Security Officer'], lead: ['Security Lead', 'Security Architect'], agent: ['Security Engineer', 'Code Reviewer', 'Dependency and Secrets Scanner'] },
+  Quality: { head: ['Head of Quality'], lead: ['QA Lead', 'Test Automation Lead'], agent: ['QA Engineer', 'Test Automation Engineer', 'Exploratory Tester'] },
+  Design: { head: ['Head of Design'], lead: ['Design Lead', 'UX Lead'], agent: ['UI Designer', 'UX Designer', 'Accessibility and Localisation Specialist'] },
+  Data: { head: ['Head of Data'], lead: ['Data Lead', 'Database Lead'], agent: ['Data Analyst', 'Database Engineer', 'Data Manager'] },
+  Marketing: { head: ['Head of Marketing', 'Chief Marketing Officer'], lead: ['Marketing Manager', 'Campaign Manager'], agent: ['Content Writer', 'SEO Specialist', 'Social Media Executive', 'Pitch and Investor Relations Agent'] },
+  Sales: { head: ['Head of Sales', 'Chief Revenue Officer'], lead: ['Sales Manager', 'Account Manager'], agent: ['Sales Executive', 'Business Development Executive'] },
+  Support: { head: ['Head of Support'], lead: ['Support Lead'], agent: ['Support Agent', 'Compliance Support Agent'] },
+  Finance: { head: ['Head of Finance', 'Chief Financial Officer'], lead: ['Finance Manager'], agent: ['Accountant', 'Finance Analyst'] },
+  'Legal and compliance': { head: ['Head of Legal and Compliance'], lead: ['Compliance Manager'], agent: ['Legal Assistant', 'Compliance Officer'] },
+  'People and HR': { head: ['Head of People'], lead: ['HR Manager'], agent: ['Recruiter', 'HR Executive'] },
+  Operations: { head: ['Head of Operations'], lead: ['Operations Manager'], agent: ['Operations Executive', 'Release Manager'] },
+  Research: { head: ['Head of Research'], lead: ['Research Lead'], agent: ['Researcher', 'Market Analyst', 'Feature Scout'] },
+  Other: { head: ['Head'], lead: ['Team Lead'], agent: ['Specialist'] },
+};
+export function titlesFor(dept: string, seniority: string): string[] {
+  const t = T[dept] || T.Other, s = seniorityOf(seniority).id;
+  if (s === 'junior') return t.agent.map((x) => 'Junior ' + x);
+  return (t as Record<string, string[]>)[s] || t.agent;
+}
+
+export interface Resolved { dept: string; seniority: Seniority; title: string; level: string; brainOwn: boolean; leader: boolean; duties: string[]; requirements: string[]; tools: string[]; skills: Array<[string, string]>; memory: string[]; mustNot: string[]; approvals: string[]; plugins: string[] }
 const uniq = (l: string[]) => [...new Set(l)];
-export function resolveRole(dept: string, desig: string): Resolved {
-  const d = (DEPARTMENTS as readonly string[]).includes(dept) ? dept : 'Other', p = DEPT_PROFILES[d] || DEPT_PROFILES.Other, g = designationOf(desig);
-  return { dept: d, designation: g, title: g.titleOf(d), level: g.level, brainOwn: g.own, leader: g.leader,
+export function resolveRole(dept: string, seniority: string, job = ''): Resolved {
+  const d = (DEPARTMENTS as readonly string[]).includes(dept) ? dept : 'Other', p = DEPT_PROFILES[d] || DEPT_PROFILES.Other, g = seniorityOf(seniority);
+  const titles = titlesFor(d, g.id), title = titles.includes(job) ? job : titles[0];
+  return { dept: d, seniority: g, title, level: g.level, brainOwn: g.own, leader: g.leader,
     duties: uniq([...g.duties, ...p.duties]), requirements: p.requirements, tools: p.tools, skills: p.skills,
     memory: g.own ? p.memory : p.memory.filter((m) => m !== M[5] && m !== M[4] || g.id !== 'junior').slice(0, g.id === 'junior' ? 3 : 6), mustNot: p.mustNot,
     approvals: uniq([...p.approvals, ...g.approvals]), plugins: p.plugins };

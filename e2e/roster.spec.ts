@@ -10,6 +10,7 @@ test('seeded roster loads, an agent expands, an edited due date survives a reloa
   await expect(page).toHaveURL(/\/login$/);
   await page.fill('#password', PASSWORD);
   await page.click('button[type=submit]');
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await expect(page).toHaveURL(/\/$/);
 
   // The landing page is the overview; the roster spreadsheet is one click away.
@@ -36,6 +37,7 @@ test('seeded roster loads, an agent expands, an edited due date survives a reloa
 
   // Reload: expand again (expansion is view state, as before) and the date is still there.
   await page.reload();
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await page.click('.tab[data-tab="g:people"]'); await page.click('.subtab[data-tab="agents"]');
   await expect(page.locator('table.sheet tr.r-agent')).toHaveCount(39);
   await expect(page.locator(`#d-todo-${AGENT}-0`)).toHaveValue(NEW_DUE);

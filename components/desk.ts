@@ -15,7 +15,7 @@ import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, bu
 import { HOLD, TIMELINES, ROUTINES, HIRING, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
 import { newCompany } from '@/lib/companies';
-import { DESIGNATIONS, designationOf, resolveRole } from '@/lib/roles';
+import { SENIORITIES, seniorityOf, titlesFor, resolveRole } from '@/lib/roles';
 import { cleanHire, cancel as cancelReq, decide as decideReq, fill as fillReq, newReq } from '@/lib/reqs';
 import { LEVELS, agentUnits, cleanLimit, cleanRate, companyUsage, hireCheck, labelOf, modelUnits, overLimits, rupees, unitCap, usageOf, whoOf } from '@/lib/budget';
 import { DEPARTMENTS, TECH, deptOf, groupBy, techOf, ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
@@ -43,7 +43,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,nc:{name:'',site:'',purpose:'',rate:''},reqs:null,rq:{company:'',by:'owner',dept:'',designation:'agent',reason:''},rqNote:{},lm:{level:'company',company:'',target:'',maxAgents:'',maxUnits:'',maxRupees:''},orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'co',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,nc:{name:'',site:'',purpose:'',rate:''},reqs:null,rq:{company:'',by:'owner',dept:'',seniority:'agent',jobTitle:'',reason:''},rqNote:{},lm:{level:'company',company:'',target:'',maxAgents:'',maxUnits:'',maxRupees:''},orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -105,11 +105,11 @@ function railHTML(){
   return h;
 }
 function topHTML(repo){
-  var h='<header class="top"><div><h1>'+(repo?esc(repo.full_name.split('/')[1]):'All projects')+'</h1><div class="sub">';
+  var h='<header class="top"><div><h1>'+(repo?esc(repo.full_name.split('/')[1]):(S.scope!=='all'?esc(coName(S.scope)):modeOf(S.tab)==='companies'?'All companies':'All projects'))+'</h1><div class="sub">';
   if(repo)h+='<a href="'+esc(repo.url)+'" target="_blank" rel="noopener">'+esc(repo.full_name)+'</a><span class="pill">'+esc(repo.visibility)+'</span><span>pushed '+esc(ago(repo.pushed_at))+'</span>';
-  else if(S.scope!=='all')h+='<span>'+esc(fullName(S.scope))+'</span>';
+  else if(S.scope!=='all')h+='<span>'+esc(((S.org&&S.org.companies&&S.org.companies[S.scope])||{}).custom?'Company recorded in Agent Desk':fullName(S.scope))+'</span>';
   else h+='<span>'+S.repos.length+' repositories from GitHub, with the agents that run them</span>';
-  h+='</div></div><div class="btns"><button class="btn" data-act="tab" data-tab="connect">Connections</button><button class="btn primary" data-act="wizard-open" data-project="'+(S.scope==='all'?'':esc(S.scope))+'">Build an agent</button></div></header>';
+  h+='</div></div><div class="btns">'+(S.scope!=='all'?siteBtn(S.scope):'')+'<button class="btn" data-act="tab" data-tab="connect">Connections</button><button class="btn primary" data-act="wizard-open" data-project="'+(S.scope==='all'?'':esc(S.scope))+'">Build an agent</button></div></header>';
   return h;
 }
 function briefHTML(id:any){
@@ -132,9 +132,21 @@ function statsHTML(list:any){
    +'<div><span class="l">Goals met</span><span class="v">'+gd+' <small>of '+gt+'</small></span></div>'
    +'<div><span class="l">KPI attainment</span><span class="v">'+(avg==null?'—':avg+'<small>%</small>')+'</span></div></section>';
 }
-var GROUPS=[['progress','Progress',[['live','Now'],['tracker','History'],['report','Status report']]],['people','People',[['people','Directory'],['agents','Teams'],['hr','HR desk'],['org','Org chart'],['co','Companies'],['lib','Library']]],['work','Work',[['tasks','Todos'],['score','Goals & KPIs']]]];
+var GROUPS=[['progress','Progress',[['live','Now'],['tracker','History'],['report','Status report']]],['people','People',[['people','Directory'],['agents','Teams'],['lib','Library']]],['work','Work',[['tasks','Todos'],['score','Goals & KPIs']]]];
 function groupOf(tab:any){for(var i=0;i<GROUPS.length;i++)for(var j=0;j<GROUPS[i][2].length;j++)if(GROUPS[i][2][j][0]===tab)return GROUPS[i];return null}
-function tabsHTML(list){
+var CO_GROUP:any=['companies','Companies',[['co','Companies'],['org','Org chart'],['hr','HR desk']]];
+function modeOf(tab:any){return tab==='co'||tab==='org'||tab==='hr'?'companies':tab==='proj'?'projects':'agents'}
+function modesHTML(){
+  var md=modeOf(S.tab),m=[['companies','Companies',companyIds().length],['projects','Projects',S.repos.length],['agents','Agents',S.agents.length]];
+  return '<div class="modes" role="tablist" aria-label="Main views">'+m.map(function(x:any){return '<button class="mode" role="tab" data-act="mode" data-mode="'+x[0]+'" aria-selected="'+(md===x[0])+'">'+x[1]+'<em>'+x[2]+'</em></button>'}).join('')+'</div>';
+}
+function tabsHTML(list:any){
+  var md=modeOf(S.tab);
+  if(md==='companies')return modesHTML()+subTabsHTML(list,CO_GROUP);
+  if(md==='projects')return modesHTML();
+  return modesHTML()+tabsHTML0(list);
+}
+function tabsHTML0(list){
   var n=list.reduce(function(s,a){return s+(a.todos||[]).length},0),k=list.reduce(function(s,a){return s+(a.kpis||[]).length+(a.goals||[]).length},0);
   var cur=groupOf(S.tab),cg=cur?'g:'+cur[0]:S.tab;
   var t=[['overview','Overview',''],['g:progress','Progress',''],['g:people','People',list.length],['g:work','Work',n+k],['caps','Capabilities',ext().items.length+ext().rules.length+ext().shared.length],['connect','Connections',modelList().length]];
@@ -239,8 +251,8 @@ function scoreView(list){return vsw('score','Cards')+(isSheet('score')?scoreShee
 function libView(list){return vsw('lib','Cards')+(isSheet('lib')?libSheet(list):libCards(list))}
 function shellHTML(){
   var list=agentsOf(S.scope),repo=S.scope==='all'?null:repoById(S.scope);
-  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='org'||S.tab==='co'||S.tab==='hr'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
-   +'<section>'+coverBanner()+((groupOf(S.tab)||[])[0]==='progress'?progressHeader():'')+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='hr'?hrDeskView(list):S.tab==='org'?orgView(list):S.tab==='co'?companiesView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
+  return '<div class="shell">'+railHTML()+'<main class="main">'+(S.banner?'<div class="err">'+esc(S.banner)+'</div>':'')+'<div class="mainhead">'+topHTML(repo)+tabsHTML(list)+'</div>'+(S.scope!=='all'?briefHTML(S.scope):'')+(S.tab==='overview'||S.tab==='tracker'||S.tab==='live'||S.tab==='people'||S.tab==='org'||S.tab==='co'||S.tab==='hr'||S.tab==='proj'||S.tab==='report'||S.tab==='caps'||S.tab==='connect'?'':statsHTML(list))
+   +'<section>'+coverBanner()+((groupOf(S.tab)||[])[0]==='progress'?progressHeader():'')+(S.tab==='overview'?overviewView(list):S.tab==='live'?liveView(list):S.tab==='tracker'?trackerView(list):S.tab==='people'?directoryView(list):S.tab==='proj'?projectsView():S.tab==='hr'?hrDeskView(list):S.tab==='org'?orgView(list):S.tab==='co'?companiesView(list):S.tab==='caps'?capView(list):S.tab==='connect'?connectView():S.tab==='agents'?rosterView(list):S.tab==='tasks'?todosView(list):S.tab==='lib'?libView(list):S.tab==='report'?reportView(list):scoreView(list))+'</section></main></div>';
 }
 
 var LSPEC: any = {
@@ -328,7 +340,7 @@ function chatHTML(){
     else{
       c.proposals.forEach(function(p,i){
         var list=p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis,it=list&&list[p.index],label=(p.kind==='memory'||p.kind==='hire')?p.note:it?(it.text||it.name):'(item removed)';
-        h+='<div class="prop"><div class="grow"><b>'+({todo:'Todo',goal:'Goal',kpi:'KPI',routine:'Routine',memory:'Add to memory',hire:'Hiring request'}[p.kind])+':</b> '+esc(label)+'<small>'+[p.due?(p.kind==='routine'?'next run ':'due ')+p.due:'',p.status?'status '+p.status:'',p.kind==='hire'?p.dept+' · '+designationOf(p.designation).label:p.kind==='memory'?'':p.note].filter(Boolean).map(esc).join(' · ')+'</small></div>'
+        h+='<div class="prop"><div class="grow"><b>'+({todo:'Todo',goal:'Goal',kpi:'KPI',routine:'Routine',memory:'Add to memory',hire:'Hiring request'}[p.kind])+':</b> '+esc(label)+'<small>'+[p.due?(p.kind==='routine'?'next run ':'due ')+p.due:'',p.status?'status '+p.status:'',p.kind==='hire'?p.dept+' · '+seniorityOf(p.seniority).label+' · '+(p.jobTitle||resolveRole(p.dept,p.seniority).title):p.kind==='memory'?'':p.note].filter(Boolean).map(esc).join(' · ')+'</small></div>'
          +(p.state==='open'?'<span><button class="btn small primary" data-act="prop-apply" data-i="'+i+'">Apply</button> <button class="btn small" data-act="prop-skip" data-i="'+i+'">Skip</button></span>':'<span class="hint">'+(p.state==='applied'?'Applied':'Skipped')+'</span>')+'</div>';
       });
       if(c.proposals.some(function(p){return p.state==='open'}))h+='<div><button class="btn small primary" data-act="prop-all">Apply all</button></div>';
@@ -351,10 +363,11 @@ function extrasHTML(x:any){
   x.__brain=S.wizard.brain||defaultBrain({role:S.wizard.task});
   var h='<section class="more" aria-label="More details"><h3>More details · defaults chosen for you</h3>';
   h+='<p class="hint">Pre-selected from the task. Keep them as they are or untick what does not apply. These are recorded on the role; this app does not connect to the services.</p>';
-  var dEff=effectiveDept(x,S.wizard.task),rr=resolveRole(dEff,x.designation),skOpts=rr.skills.map(function(k:any){return k[0]}),plOpts=pluginNames();
+  var dEff=effectiveDept(x,S.wizard.task),rr=resolveRole(dEff,x.seniority,x.jobTitle),skOpts=rr.skills.map(function(k:any){return k[0]}),plOpts=pluginNames();
   h+='<div class="two"><div class="fld"><label for="wx-dept">Department</label><select id="wx-dept" data-wxrole="dept"><option value="">Worked out from the task: '+esc(dEff)+'</option>'+DEPARTMENTS.map(function(d:any){return '<option'+(x.dept===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')+'</select></div>'
-   +'<div class="fld"><label for="wx-desig">Designation</label><select id="wx-desig" data-wxrole="designation">'+DESIGNATIONS.map(function(d:any){return '<option value="'+d.id+'"'+(x.designation===d.id?' selected':'')+'>'+esc(d.label)+'</option>'}).join('')+'</select></div></div>'
-   +'<p class="hint">'+esc(designationOf(x.designation).blurb)+' Title: <b>'+esc(rr.title)+'</b>. Typical duties, loaded into the draft: '+esc(rr.duties.slice(0,3).join('; '))+'.</p>';
+   +'<div class="fld"><label for="wx-sen">Seniority</label><select id="wx-sen" data-wxrole="seniority">'+SENIORITIES.map(function(d:any){return '<option value="'+d.id+'"'+(x.seniority===d.id?' selected':'')+'>'+esc(d.label)+'</option>'}).join('')+'</select></div></div>'
+   +'<div class="fld"><label for="wx-desig">Designation <span class="hint">the job title; the list depends on the department and seniority</span></label><select id="wx-desig" data-wxrole="jobTitle">'+titlesFor(dEff,x.seniority).map(function(t:any){return '<option'+(rr.title===t?' selected':'')+'>'+esc(t)+'</option>'}).join('')+'</select></div>'
+   +'<p class="hint">'+esc(seniorityOf(x.seniority).blurb)+' Title: <b>'+esc(rr.title)+'</b>. Typical duties, loaded into the draft: '+esc(rr.duties.slice(0,3).join('; '))+'.</p>';
   h+='<div class="fld"><label>Skills</label>'+(skOpts.length||x.skills.length?box('skills',uniq(skOpts.concat(x.skills)),x.skills):'<span class="hint">None for this department.</span>')+'</div>';
   h+='<div class="fld"><label>Plugins and capabilities <span class="hint">registered under Capabilities. Ticked ones are given to this agent.</span></label>'+(plOpts.length?box('plugins',plOpts,x.plugins):'<span class="hint">None registered yet.</span>')+'</div>';
   h+='<div class="fld"><label>Tools and access</label>'+box('tools',TOOL_OPTIONS,x.tools)+'<input type="text" id="wx-other" data-wx="otherTools" value="'+esc(x.otherTools)+'" placeholder="Other tools, comma separated" aria-label="Other tools"></div>';
@@ -465,16 +478,16 @@ function createAgent(){
   var w=S.wizard,f=w.fields;
   if(!f.name.trim()||!f.role.trim()){w.error='Give the agent a name and a role.';render();return}
   var s=fromFields(f);
-  var lead=isLeaderT({role:s.role,name:s.name})||resolveRole(effectiveDept(w.extras,w.task),w.extras.designation).leader&&roleChosen(w.extras),rec=recommendModel(w.task,atModels(),lead),units=modelUnits(rec.id||'opus55',lead);
+  var lead=isLeaderT({role:s.role,name:s.name})||resolveRole(effectiveDept(w.extras,w.task),w.extras.seniority,w.extras.jobTitle).leader&&roleChosen(w.extras),rec=recommendModel(w.task,atModels(),lead),units=modelUnits(rec.id||'opus55',lead);
   if(!gate({company:w.projectId,dept:effectiveDept(w.extras,w.task),role:s.role},units,w,'create:'+s.name)){w.error=w.err;return}
-  var roleSel=roleChosen(w.extras),rl0=resolveRole(effectiveDept(w.extras,w.task),w.extras.designation);
+  var roleSel=roleChosen(w.extras),rl0=resolveRole(effectiveDept(w.extras,w.task),w.extras.seniority,w.extras.jobTitle);
   var a={model:rec.id||'',id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
     purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,mustNot:s.mustNot,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,
     routines:[{name:'Status update to '+(s.reportsTo||'the owner'),cadence:w.extras.cadence,state:'planned',next:'',note:'Set when the agent was built'}],
     brain:w.brain||defaultBrain({role:s.role,name:s.name}),
     memory:w.extras.notes.trim()?[{text:w.extras.notes.trim(),at:today(),src:'you'}]:[],
     source:w.source,createdAt:Date.now()};
-  a.dept=rl0.dept;a.designation=w.extras.designation;if(roleSel)a.level=rl0.level;
+  a.dept=rl0.dept;a.seniority=w.extras.seniority;a.designation=rl0.title;if(roleSel)a.level=rl0.level;
   a.skills=(w.extras.skills||[]).map(function(n:any){var f2=rl0.skills.filter(function(k:any){return k[0]===n})[0];return {name:n,note:f2?f2[1]:''}});
   S.agents.unshift(a);
   (function(){var E=ext(),ch=false,tm=teamIndex();(w.extras.plugins||[]).forEach(function(n:any){E.items.forEach(function(it:any){if(it.name===n){var ns=giveTo(it.scope,a,tm);if(JSON.stringify(ns)!==JSON.stringify(it.scope)){it.scope=ns;ch=true}}})});if(ch)saveExt(E)})();
@@ -514,7 +527,7 @@ async function sync(){
   S.syncing=true;render();
   try{
     var repos=await listRepos();
-    var items=repos.filter(function(x:any){return x&&x.full_name&&x.full_name.indexOf('/')>0}).map(function(x:any){return {full_name:x.full_name,url:x.url||('https://github.com/'+x.full_name),pushed_at:x.pushed_at||'',visibility:x.visibility||'private'}});
+    var items=repos.filter(function(x:any){return x&&x.full_name&&x.full_name.indexOf('/')>0}).map(function(x:any){return {full_name:x.full_name,url:x.url||('https://github.com/'+x.full_name),pushed_at:x.pushed_at||'',visibility:x.visibility||'private',description:x.description||'',homepage:x.homepage||'',language:x.language||'',topics:x.topics||[]}});
     if(!items.length)throw {code:'empty'};
     var fromGh=items.length;items=keepKnown(items);
     S.repos=items;S.syncedAt=Date.now();
@@ -565,7 +578,7 @@ async function captureChat(){
     var ok=[] as any[];
     (Array.isArray(arr)?arr:[]).forEach(function(p:any){
       var kind=p&&p.kind;
-      if(kind==='hire'){var hh=cleanHire({dept:p.dept,designation:p.designation,note:p.note});if(hh)ok.push({kind:'hire',index:-1,due:'',status:'',note:hh.note,dept:hh.dept,designation:hh.designation,state:'open'});return}
+      if(kind==='hire'){var hh=cleanHire({dept:p.dept,seniority:p.seniority,note:p.note});if(hh)ok.push({kind:'hire',index:-1,due:'',status:'',note:hh.note,dept:hh.dept,seniority:hh.seniority,jobTitle:hh.jobTitle,state:'open'});return}
       if(kind==='memory'){var mt=String(p.note||'').trim().slice(0,200);if(mt)ok.push({kind:'memory',index:-1,due:'',status:'',note:mt,state:'open'});return}
       var idx=Number(p&&p.index)-1,list=kind==='todo'?a.todos:kind==='goal'?a.goals:kind==='kpi'?a.kpis:kind==='routine'?a.routines:null;
       if(!list||!(idx>=0&&idx<list.length))return;
@@ -586,7 +599,7 @@ function applyProp(i:any,quiet?:any){
   if(!a||!p||p.state!=='open')return;
   p.state='applied';
   if(p.kind==='hire'){
-    var rn2=newReq({company:a.projectId,by:a.id,byName:a.name,dept:p.dept,designation:p.designation,reason:p.note},'r'+Date.now().toString(36)+i);
+    var rn2=newReq({company:a.projectId,by:a.id,byName:a.name,dept:p.dept,seniority:p.seniority,jobTitle:p.jobTitle,reason:p.note},'r'+Date.now().toString(36)+i);
     if(typeof rn2==='string'){p.state='open';toast(rn2);return}
     p.state='applied';var rd5=reqsDoc();rd5.items.push(rn2);S.reqs=rd5;persist('meta','reqs',rd5);if(!quiet){render();toast('Requisition sent to the HR desk')}return}
   if(p.kind==='memory'){(a.memory=a.memory||[]).push({text:p.note,at:today(),src:'chat'});if(!quiet){persist('agents',a.id,a);render()}return}
@@ -608,6 +621,7 @@ document.addEventListener('click',function(e){
   var el=e.target.closest('[data-act]');if(!el)return;
   var act=el.dataset.act,id=el.dataset.id,i=Number(el.dataset.i);
   if(act==='scope'){S.scope=id;render()}
+  else if(act==='mode'){var mm=el.dataset.mode;if(modeOf(S.tab)==='agents')S.lastAgentTab=S.tab;S.tab=mm==='companies'?'co':mm==='projects'?'proj':(S.lastAgentTab||'overview');render()}
   else if(act==='tab'){
     var tt=el.dataset.tab;
     if(tt.indexOf('g:')===0){var gg=GROUPS.filter(function(x:any){return x[0]===tt.slice(2)})[0];S.tab=(gg&&S.lastSub[gg[0]])||(gg?gg[2][0][0]:'overview')}else S.tab=tt;
@@ -629,9 +643,9 @@ document.addEventListener('click',function(e){
   else if(act==='mv-close'){S.mv=null;render()}
   else if(act==='orgby'){S.orgBy=el.dataset.by;render()}
   else if(act==='rq-add'){
-    var rf=S.rq,rpe=S.agents.filter(function(a:any){return a.id===rf.by})[0],rn=newReq({company:rf.company||companyIds()[0],by:rf.by,byName:rpe?rpe.name:'You',dept:rf.dept,designation:rf.designation,reason:rf.reason},'r'+Date.now().toString(36));
+    var rf=S.rq,rpe=S.agents.filter(function(a:any){return a.id===rf.by})[0],rn=newReq({company:rf.company||companyIds()[0],by:rf.by,byName:rpe?rpe.name:'You',dept:rf.dept,seniority:rf.seniority,jobTitle:rf.jobTitle,reason:rf.reason},'r'+Date.now().toString(36));
     if(typeof rn==='string'){toast(rn);return}
-    var rd=reqsDoc();rd.items.push(rn);S.rq={company:rf.company,by:'owner',dept:'',designation:'agent',reason:''};saveReqs(rd);toast('Requisition raised');
+    var rd=reqsDoc();rd.items.push(rn);S.rq={company:rf.company,by:'owner',dept:'',seniority:'agent',jobTitle:'',reason:''};saveReqs(rd);toast('Requisition raised');
   }
   else if(act==='rq-approve'||act==='rq-decline'||act==='rq-cancel'||act==='rq-build'){
     var rd2=reqsDoc(),rq=rd2.items.filter(function(r:any){return r.id===id})[0];if(!rq)return;
@@ -734,11 +748,12 @@ document.addEventListener('click',function(e){
   }
   else if(act==='co-first'){
     openWizard(id);var wf=S.wizard;wf.task='Plan the company: decide which functions are needed, then raise requisitions on the HR desk. '+(((orgDoc().companies[id]||{}).purpose)||'');
-    wf.extras.dept='Leadership';wf.extras.designation='head';wf.extras=refreshDefaults(wf.extras,wf.task,pluginNames());
+    wf.extras.dept='Leadership';wf.extras.seniority='head';wf.extras=refreshDefaults(wf.extras,wf.task,pluginNames());
     var rf2=resolveRole('Leadership','head');wf.brain={own:rf2.brainOwn,memory:rf2.memory.slice(),note:''};render();
   }
   else if(act==='chat-hiring')sendChat(HIRING);
   else if(act==='co-brief'){S.scope=id;S.tab='co';render()}
+  else if(act==='proj-open'){S.scope=id;S.tab='proj';render()}
   else if(act==='todo-cycle')mutate(id,function(a){var t=a.todos[i],o=['todo','doing','done'];t.status=o[(o.indexOf(t.status||'todo')+1)%3]});
   else if(act==='todo-add'){var ti=document.getElementById('todo-new');if(ti&&ti.value.trim()){var v=ti.value.trim();ti.value='';mutate(id,function(a){(a.todos=a.todos||[]).push({text:v,status:'todo',due:''})})}}
   else if(act==='goal-add'){var gi=document.getElementById('goal-new');if(gi&&gi.value.trim()){var gv=gi.value.trim();gi.value='';mutate(id,function(a){(a.goals=a.goals||[]).push({text:gv,horizon:'',done:false,due:''})})}}
@@ -777,9 +792,9 @@ document.addEventListener('input',function(e){
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
   else if(t.dataset.wxrole&&S.wizard){
-    var wz=S.wizard,xx=wz.extras;xx[t.dataset.wxrole]=t.value;xx.touched={tools:false,approvals:false,skills:false,plugins:false};
+    var wz=S.wizard,xx=wz.extras;xx[t.dataset.wxrole]=t.value;if(t.dataset.wxrole!=='jobTitle')xx.jobTitle='';xx.touched={tools:false,approvals:false,skills:false,plugins:false};
     wz.extras=refreshDefaults(xx,wz.task,pluginNames());
-    var rl=resolveRole(effectiveDept(wz.extras,wz.task),wz.extras.designation);wz.brain={own:rl.brainOwn,memory:rl.memory.slice(),note:''};
+    var rl=resolveRole(effectiveDept(wz.extras,wz.task),wz.extras.seniority,wz.extras.jobTitle);wz.brain={own:rl.brainOwn,memory:rl.memory.slice(),note:''};
     render();
   }
   else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
@@ -820,7 +835,7 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
-  else if(t.dataset.rqf){S.rq[t.dataset.rqf]=t.value;if(t.dataset.rqf==='company'||t.dataset.rqf==='by'){render()}}
+  else if(t.dataset.rqf){S.rq[t.dataset.rqf]=t.value;if(t.dataset.rqf==='dept'||t.dataset.rqf==='seniority'){S.rq.jobTitle=''}if(['company','by','dept','seniority'].indexOf(t.dataset.rqf)>=0){render()}}
   else if(t.dataset.rqnote){S.rqNote[t.dataset.rqnote]=t.value}
   else if(t.dataset.lmf){S.lm[t.dataset.lmf]=t.value;if(t.dataset.lmf==='level'||t.dataset.lmf==='company'){S.lm.target='';render()}}
   else if(t.dataset.corate){var cr=cleanRate(t.value),og3=orgDoc();if(cr)og3.rates[t.dataset.corate]=cr;else delete og3.rates[t.dataset.corate];S.org=og3;persist('meta','org',og3);render();toast(cr?'Rupee rate saved':'Rupee rate cleared')}
@@ -1377,10 +1392,10 @@ function gate(who:any,units:any,holder:any,key:string){
 }
 function isoPlus(days:any){return new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
 function coName(id:any){var cr=S.org&&S.org.companies&&S.org.companies[id];if(cr&&cr.custom&&cr.name)return cr.name;var n=fullName(id);return n.indexOf('/')>=0?n.split('/')[1]:n}
-function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});var oc=(S.org&&S.org.companies)||{};Object.keys(oc).forEach(function(k:any){if(oc[k]&&oc[k].custom&&o.indexOf(k)<0)o.push(k)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
+function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});S.repos.forEach(function(r:any){var k=rid(r);if(o.indexOf(k)<0)o.push(k)});var oc=(S.org&&S.org.companies)||{};Object.keys(oc).forEach(function(k:any){if(oc[k]&&oc[k].custom&&o.indexOf(k)<0)o.push(k)});var has=function(x:any){return S.agents.some(function(g:any){return g.projectId===x})?0:1};return o.sort(function(a:any,b:any){return has(a)-has(b)||coName(a).localeCompare(coName(b))})}
 function siteOf(id:any){
   var m=safeUrl(((S.org&&S.org.companies&&S.org.companies[id])||{}).site);if(m)return m;
-  var r=S.feed&&S.feed.repos&&S.feed.repos[String(id).replace('__','/')];return (r&&safeUrl(r.site))||'';
+  var r=S.feed&&S.feed.repos&&S.feed.repos[String(id).replace('__','/')],rp=repoById(id);return (r&&safeUrl(r.site))||(rp&&safeUrl(rp.homepage))||'';
 }
 function siteBtn(id:any){var u=siteOf(id);return u?'<a class="btn small primary" href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Open site ↗</a>':'<span class="hint">No website found yet</span>'}
 function stDot(a:any){var st=effState(a);return '<span class="stc st-'+esc(st)+'">'+esc(statusLabel(st))+'</span>'}
@@ -1428,6 +1443,33 @@ function orgAlt(list:any,ids:any,mode:string){
   }
   return h+'<p class="hint">Departments and technologies are worked out from each role and its tools. Set them yourself in Edit if the guess is wrong.</p>';
 }
+function masterBlock(){
+  var og=orgDoc(),ids=companyIds(),owners:any={};S.repos.forEach(function(r:any){owners[r.full_name.split('/')[0]]=1});
+  var rows=ids.map(function(id:any){var u=companyUsage(S.agents,id),rt=og.rates[id],ru=rupees(u.units,rt),cl=og.limits.filter(function(l:any){return l.company===id&&l.level==='company'})[0],cap=cl?unitCap(cl,og.rates):undefined;return {id:id,u:u,ru:ru,cl:cl,cap:cap}});
+  var tot=rows.reduce(function(s:any,r:any){s.h+=r.u.heads;s.u+=r.u.units;s.r+=r.ru||0;return s},{h:0,u:0,r:0});
+  var show=S.scope==='all'?rows:rows.filter(function(r:any){return r.id===S.scope});
+  var h='<div class="cd" style="margin-bottom:16px"><div class="cd-h"><div class="grow"><b>Master company</b><small class="hint" style="display:block">'+esc(Object.keys(owners).join(', ')||'Your GitHub account')+' · '+ids.length+' companies · '+S.repos.length+' projects (repos)</small></div></div>'
+   +'<div class="pc-facts"><div><span>Agents</span><b>'+tot.h+'</b></div><div><span>Capacity</span><b>'+tot.u+' units</b></div><div><span>Monthly cost</span><b>'+(tot.r?'₹'+tot.r:'Set a rupee rate')+'</b></div><div><span>Limits set</span><b>'+og.limits.length+'</b></div></div>'
+   +'<h3 style="margin-top:10px">Budget allocation'+(S.scope==='all'?'':' for this company')+'</h3><div class="sheetwrap"><table class="sheet"><thead><tr><th>Company</th><th>Agents</th><th>Capacity</th><th>Share</th><th>Cost a month</th><th>Whole-company limit</th></tr></thead><tbody>'
+   +show.map(function(r:any){var over=r.cl&&((r.cl.maxAgents&&r.u.heads>r.cl.maxAgents)||(r.cap&&r.u.units>r.cap));return '<tr><td>'+esc(coName(r.id))+'</td><td>'+r.u.heads+'</td><td>'+r.u.units+'</td><td>'+(tot.u?Math.round(100*r.u.units/tot.u)+'%':'—')+'</td><td>'+(r.ru?'₹'+r.ru:'—')+'</td><td'+(over?' class="bad"':'')+'>'+(r.cl?[r.cl.maxAgents?r.cl.maxAgents+' agents':'',r.cap?r.cap+' units':''].filter(Boolean).join(', ')+(over?' (over)':''):'None set')+'</td></tr>'}).join('')
+   +'</tbody></table></div></div>';
+  return h;
+}
+function projectsView(){
+  if(!S.loaded)return '<p class="hint">Loading…</p>';
+  var rs=S.repos.filter(function(r:any){return S.scope==='all'||rid(r)===S.scope});
+  if(!rs.length)return '<p class="hint">No projects here.</p>';
+  var h='<p class="hint">A project is a GitHub repository. Each one runs as a company in Agent Desk, with its own agents and budget.</p><div class="gc">';
+  rs.forEach(function(r:any){
+    var id=rid(r),ag=agentsOf(id),open=ag.reduce(function(s:any,a:any){return s+count(a,'todos',function(t:any){return t.status!=='done'})},0),br=(S.projects[id]&&S.projects[id].brief)||'',st=siteOf(id);
+    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(r.full_name.split('/')[1])+'</b><small class="hint" style="display:block">'+esc(r.full_name)+' · '+esc(r.visibility)+' · pushed '+esc(ago(r.pushed_at))+'</small></div>'+siteBtn(id)+'<a class="btn small" href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>'
+     +(r.description?'<p>'+esc(r.description)+'</p>':'<p class="hint">No description on GitHub yet. Use "Collect from GitHub" in the brief to pull the details.</p>')
+     +'<div class="chips">'+(r.language?'<span class="chip">'+esc(r.language)+'</span>':'')+(r.topics||[]).map(function(t:any){return '<span class="chip topic">'+esc(t)+'</span>'}).join('')+'<span class="chip">'+ag.length+' agents</span><span class="chip">'+open+' open todos</span></div>'
+     +(br?'<p class="hint"><b>Brief:</b> '+esc(br.replace(/\s+/g,' ').slice(0,260))+(br.length>260?'…':'')+'</p>':'<p class="hint">No brief saved yet.</p>')
+     +'<div class="ctlbtns"><button class="btn small primary" data-act="proj-open" data-id="'+esc(id)+'">Open project</button><button class="btn small" data-act="co-brief" data-id="'+esc(id)+'">Company page</button></div></div>';
+  });
+  return h+'</div>';
+}
 function newCompanyBlock(){
   var f=S.nc;
   return '<div class="cd" style="margin-bottom:16px"><b>Start a new company</b><p class="hint">This records the company in Agent Desk only. It does not create a GitHub repo. Add a Founder next, who can plan the functions; hiring requests then go through the HR desk.</p>'
@@ -1438,18 +1480,18 @@ function newCompanyBlock(){
 function companiesView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
   if(!S.agents.length&&!companyIds().length)return emptyHTML();
-  var ids=companyIds(),st=companyStats(S.agents,ids),h='<div class="gc">';
+  var allIds=companyIds(),ids=S.scope==='all'?allIds:allIds.filter(function(x:any){return x===S.scope}),st=companyStats(S.agents,ids),h=masterBlock()+'<div class="gc">';
   st.forEach(function(c:any){
     var pid=c.id,fr=S.feed&&S.feed.repos&&S.feed.repos[String(pid).replace('__','/')],pct=c.assigned?Math.round(100*c.done/c.assigned):null,T=buildTree(S.agents.filter(function(a:any){return a.projectId===pid})),head=T.roots[0];
     var man=((S.org&&S.org.companies&&S.org.companies[pid])||{}).site||'';
-    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small>'+((orgDoc().companies[pid]||{}).purpose?'<small class="hint" style="display:block">'+esc(orgDoc().companies[pid].purpose)+'</small>':'')+'</div>'+(c.total?'':'<button class="btn small primary" data-act="co-first" data-id="'+esc(pid)+'">Add the first agent</button>')+siteBtn(pid)+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
+    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small>'+(repoById(pid)&&repoById(pid).description?'<small class="hint" style="display:block">'+esc(repoById(pid).description)+'</small>':'')+((orgDoc().companies[pid]||{}).purpose?'<small class="hint" style="display:block">'+esc(orgDoc().companies[pid].purpose)+'</small>':'')+'</div>'+(c.total?'':'<button class="btn small primary" data-act="co-first" data-id="'+esc(pid)+'">Add the first agent</button>')+siteBtn(pid)+(repoById(pid)?'<button class="btn small" data-act="proj-open" data-id="'+esc(pid)+'">Project</button>':'')+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
      +'<div class="chips"><span class="chip">'+c.total+' people</span><span class="chip">'+c.active+' active</span>'+(c.resting?'<span class="chip">'+c.resting+' resting</span>':'')+(c.paused?'<span class="chip">'+c.paused+' paused</span>':'')+(c.loanedOut?'<span class="chip">'+c.loanedOut+' lent out</span>':'')+(c.loanedIn?'<span class="chip">'+c.loanedIn+' borrowed</span>':'')+(c.bench?'<span class="chip">'+c.bench+' on bench</span>':'')+(fr&&fr.openPRs?'<span class="chip">'+fr.openPRs+' open pull requests</span>':'')+'</div>'
      +(function(){var u=companyUsage(S.agents,pid),rt=(orgDoc().rates||{})[pid],rr=rupees(u.units,rt);return '<p class="hint">Using '+u.heads+' agents and '+u.units+' capacity units'+(rr?' (about ₹'+rr+' a month)':'')+'.</p>'})()
      +(pct!=null?'<div class="pbar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div><p class="hint">'+c.done+' of '+c.assigned+' tickets done ('+pct+'%)</p>':'<p class="hint">No tickets recorded.</p>')
      +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div>'
      +'<div class="fld"><label for="cr-'+esc(pid)+'">Rupees per capacity unit per month (optional)</label><input type="text" id="cr-'+esc(pid)+'" data-corate="'+esc(pid)+'" value="'+esc(((orgDoc().rates||{})[pid])||'')+'" placeholder="Leave empty to count units only"></div></div>';
   });
-  h+='</div>'+newCompanyBlock().replace('class="cd" style="margin-bottom:16px"','class="cd" style="margin-top:16px"')+limitsBlock();
+  h+='</div>'+(S.scope==='all'?newCompanyBlock().replace('class="cd" style="margin-bottom:16px"','class="cd" style="margin-top:16px"'):'')+limitsBlock();
   var bench=S.agents.filter(function(a:any){return a.bench}),loans=S.agents.filter(function(a:any){return activeLoan(a)});
   h+='<div class="block" style="margin-top:16px"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Agents any company may borrow. Put someone on the bench from their HR file.</p>'
    +(bench.length?'<ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span> <button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+esc(a.id)+'">Lend…</button></li>'}).join('')+'</ul>':'<p class="hint">Nobody is on the bench.</p>')+'</div>';
@@ -1457,10 +1499,10 @@ function companiesView(list:any){
   return h+'<p class="hint">Websites come from the homepage on GitHub, or the address of the latest deployment (Vercel reports it there). Loans end by themselves on their last day. All of this is a record here: it does not change real role files or start runs.</p>';
 }
 function limitsBlock(){
-  var o=orgDoc(),ids=companyIds(),lm=S.lm,co=lm.company||ids[0]||'';
+  var o=orgDoc(),ids=companyIds(),lm=S.lm,co=lm.company||(S.scope!=='all'?S.scope:ids[0])||'',shown=S.scope==='all'?o.limits:o.limits.filter(function(l:any){return l.company===S.scope});
   var h='<div class="block" style="margin-top:16px"><h2>Hiring limits · '+o.limits.length+'</h2><p class="hint">Limits keep hiring tight. Each agent counts as capacity units, a rough measure of how much of your Claude plan it uses: Haiku 1, Sonnet 2, Opus 4, plus 1 for its own brain. Paused agents count as zero. A hire, loan or upgrade that breaks a limit is stopped until you repeat it to approve going over. These are estimates, not bills.</p>';
-  if(o.limits.length){
-    h+='<div class="sheetwrap"><table class="sheet"><thead><tr><th>Applies to</th><th>Company</th><th>Agents</th><th>Capacity</th><th></th></tr></thead><tbody>'+o.limits.map(function(l:any){
+  if(shown.length){
+    h+='<div class="sheetwrap"><table class="sheet"><thead><tr><th>Applies to</th><th>Company</th><th>Agents</th><th>Capacity</th><th></th></tr></thead><tbody>'+shown.map(function(l:any){
       var u=usageOf(S.agents,l,undefined),cap=unitCap(l,o.rates),rt=o.rates[l.company],over=(l.maxAgents&&u.heads>l.maxAgents)||(cap&&u.units>cap);
       return '<tr><td>'+esc(labelOf(l,agentName))+'</td><td>'+esc(coName(l.company))+'</td><td'+(l.maxAgents&&u.heads>l.maxAgents?' class="bad"':'')+'>'+(l.level==='person'?'—':u.heads+(l.maxAgents?' of '+l.maxAgents:''))+'</td><td'+(cap&&u.units>cap?' class="bad"':'')+'>'+u.units+(cap?' of '+cap:'')+' units'+(l.maxRupees?' <span class="hint">(₹'+l.maxRupees+(rt?'':', set a rupee rate to count this')+')</span>':'')+'</td><td>'+(over?'<span class="pill bad">Over</span> ':'')+'<button class="btn small" data-act="lm-del" data-id="'+esc(l.id)+'">Remove</button></td></tr>';
     }).join('')+'</tbody></table></div>';
@@ -1521,11 +1563,11 @@ function hrBlock(a:any){
 function reqsDoc(){var o=S.reqs?clone(S.reqs):{};if(!Array.isArray(o.items))o.items=[];return o}
 function saveReqs(o:any){S.reqs=o;persist('meta','reqs',o);render()}
 function prepReq(r:any){
-  var rl=resolveRole(r.dept,r.designation),og=orgDoc(),peers=S.agents.filter(function(a:any){return a.projectId===r.company});
+  var rl=resolveRole(r.dept,r.seniority,r.jobTitle),og=orgDoc(),peers=S.agents.filter(function(a:any){return a.projectId===r.company});
   var head=peers.filter(function(a:any){return a.level==='Head'&&deptOf(a)===r.dept})[0]||peers.filter(function(a:any){return a.level==='Head'})[0];
   var rec=recommendModel(r.reason+' '+rl.duties.join(' '),atModels(),rl.leader),units=modelUnits(rec.id||'opus55',rl.brainOwn);
   var chk=hireCheck(og.limits,og.rates,S.agents,{company:r.company,dept:r.dept,role:rl.title},units,agentName);
-  return {rl:rl,rec:rec,units:units,chk:chk,manager:(r.designation==='head'?'':(head&&head.name)||r.byName||''),rupees:rupees(units,og.rates[r.company])};
+  return {rl:rl,rec:rec,units:units,chk:chk,manager:(r.seniority==='head'?'':(head&&head.name)||r.byName||''),rupees:rupees(units,og.rates[r.company])};
 }
 function reqCard(r:any){
   var id=esc(r.id),pr=prepReq(r),rl=pr.rl,open=r.status==='requested';
@@ -1541,13 +1583,15 @@ function reqCard(r:any){
 }
 function hrDeskView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
-  var D=reqsDoc(),ids=companyIds(),f=S.rq,co=f.company||ids[0]||'',people=S.agents.filter(function(a:any){return a.projectId===co&&a.status!=='revoked'&&a.status!=='withdrawn'});
+  var D=reqsDoc(),ids=companyIds(),f=S.rq,co=f.company||(S.scope!=='all'?S.scope:ids[0])||'',people=S.agents.filter(function(a:any){return a.projectId===co&&a.status!=='revoked'&&a.status!=='withdrawn'});
+  D.items=D.items.filter(function(r:any){return S.scope==='all'||r.company===S.scope});
   var wait=D.items.filter(function(r:any){return r.status==='requested'}),appr=D.items.filter(function(r:any){return r.status==='approved'}),done=D.items.filter(function(r:any){return r.status!=='requested'&&r.status!=='approved'}).slice(-8).reverse();
   var h='<p class="hint">The HR desk is the default HR function for every company. Anyone can ask for a hire. The desk prepares it (role, duties, skills, model, cost) and checks your hiring limits. Only you approve or decline. Approving opens the Build an agent form already filled in, for you to review.</p>';
   h+='<div class="cd"><b>Raise a requisition</b><div class="two"><div class="fld"><label for="rq-c">Company</label><select id="rq-c" data-rqf="company">'+ids.map(function(x:any){return '<option value="'+esc(x)+'"'+(co===x?' selected':'')+'>'+esc(coName(x))+'</option>'}).join('')+'</select></div>'
    +'<div class="fld"><label for="rq-b">Asked by</label><select id="rq-b" data-rqf="by"><option value="owner">You</option>'+people.map(function(a:any){return '<option value="'+esc(a.id)+'"'+(f.by===a.id?' selected':'')+'>'+esc(a.name)+'</option>'}).join('')+'</select></div></div>'
    +'<div class="two"><div class="fld"><label for="rq-d">Department</label><select id="rq-d" data-rqf="dept"><option value="">Choose</option>'+DEPARTMENTS.map(function(d:any){return '<option'+(f.dept===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')+'</select></div>'
-   +'<div class="fld"><label for="rq-g">Designation</label><select id="rq-g" data-rqf="designation">'+DESIGNATIONS.map(function(d:any){return '<option value="'+d.id+'"'+(f.designation===d.id?' selected':'')+'>'+esc(d.label)+'</option>'}).join('')+'</select></div></div>'
+   +'<div class="fld"><label for="rq-g">Seniority</label><select id="rq-g" data-rqf="seniority">'+SENIORITIES.map(function(d:any){return '<option value="'+d.id+'"'+(f.seniority===d.id?' selected':'')+'>'+esc(d.label)+'</option>'}).join('')+'</select></div></div>'
+   +'<div class="fld"><label for="rq-j">Designation <span class="hint">the job title; depends on the department and seniority</span></label><select id="rq-j" data-rqf="jobTitle">'+titlesFor(f.dept||'Other',f.seniority).map(function(t:any){return '<option'+((f.jobTitle||titlesFor(f.dept||'Other',f.seniority)[0])===t?' selected':'')+'>'+esc(t)+'</option>'}).join('')+'</select></div>'
    +'<div class="fld"><label for="rq-r">Why is this role needed?</label><textarea id="rq-r" rows="2" data-rqf="reason" placeholder="For example Launch content is behind and the Head of Marketing has no help">'+esc(f.reason)+'</textarea></div>'
    +'<div class="ctlbtns"><button class="btn small primary" data-act="rq-add">Raise requisition</button></div></div>';
   h+='<div class="block" style="margin-top:16px"><h2>Waiting for you · '+wait.length+'</h2>'+(wait.length?'<div class="gc">'+wait.map(reqCard).join('')+'</div>':'<p class="hint">Nothing is waiting.</p>')+'</div>';
@@ -1559,7 +1603,7 @@ function reqBuild(r:any){
   var pr=prepReq(r),rl=pr.rl;
   openWizard(r.company);
   var w=S.wizard;w.task=r.reason;w.reqId=r.id;
-  w.extras.dept=r.dept;w.extras.designation=r.designation;if(pr.manager)w.extras.reportsTo=pr.manager;
+  w.extras.dept=r.dept;w.extras.seniority=r.seniority;w.extras.jobTitle=r.jobTitle;if(pr.manager)w.extras.reportsTo=pr.manager;
   w.extras=refreshDefaults(w.extras,w.task,pluginNames());w.brain={own:rl.brainOwn,memory:rl.memory.slice(),note:''};
   S.tab='hr';render();
 }
@@ -1621,7 +1665,7 @@ function overviewView(list){
     needs=needs.slice(0,8);
   }
   needs=needs.concat(orgNeeds(list));
-  (function(){var n=reqsDoc().items.filter(function(r:any){return r.status==='requested'}).length;if(n)needs.push({title:'Requisitions waiting for you',why:' '+n+' hiring request'+(n===1?'':'s')+' on the HR desk (People, HR desk).'})})();
+  (function(){var n=reqsDoc().items.filter(function(r:any){return r.status==='requested'}).length;if(n)needs.push({title:'Requisitions waiting for you',why:' '+n+' hiring request'+(n===1?'':'s')+' on the HR desk (Companies, HR desk).'})})();
   (function(){var o=orgDoc();overLimits(o.limits,o.rates,S.agents,agentName).slice(0,4).forEach(function(t:any){needs.push({title:'Over a hiring limit',why:' '+t})})})();
   var h='<div class="ov"><div class="ov-hero'+(stalled?'':' ok')+'"><h2>'+esc(head)+'</h2><p>'+esc(sub)+'</p></div>';
   h+='<div class="ov-tiles"><div class="ov-tile"><b>'+pct+'%</b><span>of tickets done ('+D+' of '+A+')</span></div>'

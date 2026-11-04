@@ -5,6 +5,7 @@ test('importing a data file adds the progress record and keeps edits', async ({ 
   await page.goto('/login');
   await page.fill('#password', 'e2e-password-not-real');
   await page.click('button[type=submit]');
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await page.locator('.tabs').waitFor();
   await page.click('.tab[data-tab="connect"]');
   const file = { agents: { fv_cto: { id: 'fv_cto', name: 'Renamed in file', progress: { asOf: '2026-11-02', assigned: 4, done: 1, open: 3, pct: 25, reasons: ['synthetic reason'] } } }, meta: { report: { headline: 'Synthetic headline', sub: '', facts: [], needsYou: [] } } };

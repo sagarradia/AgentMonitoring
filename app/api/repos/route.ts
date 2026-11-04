@@ -25,6 +25,10 @@ export async function GET(req: Request) {
         url: (x.html_url as string) || 'https://github.com/' + x.full_name,
         pushed_at: (x.pushed_at as string) || '',
         visibility: (x.visibility as string) || (x.private ? 'private' : 'public'),
+        ...(typeof x.description === 'string' && x.description ? { description: x.description.slice(0, 300) } : {}),
+        ...(typeof x.homepage === 'string' && /^https?:\/\//.test(x.homepage) ? { homepage: x.homepage.slice(0, 200) } : {}),
+        ...(typeof x.language === 'string' && x.language ? { language: x.language.slice(0, 40) } : {}),
+        ...(Array.isArray(x.topics) ? { topics: (x.topics as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 12) } : {}),
       }));
     return json({ repos });
   } catch (e) {
