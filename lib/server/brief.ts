@@ -50,20 +50,60 @@ async function readFile(repo: string, path: string, token: string, f: F): Promis
   return Buffer.from(j.content, 'base64').toString('utf8');
 }
 
+async function safeJson<T>(repo: string, path: string, token: string, f: F): Promise<T | null> {
+  try { return (await (await gh('/repos/' + repo + path, token, f)).json()) as T } catch { return null }
+}
+
+/** Facts about the repo itself: what GitHub says it is, its languages, folders, package and recent work. No file bodies. */
+export async function aboutRepo(repo: string, root: string[], token: string, f: F): Promise<string> {
+  const meta = await safeJson<{ description?: string; homepage?: string; topics?: string[]; license?: { name?: string }; created_at?: string; pushed_at?: string; open_issues_count?: number; visibility?: string; archived?: boolean }>(repo, '', token, f);
+  const langs = await safeJson<Record<string, number>>(repo, '/languages', token, f);
+  const commits = await safeJson<Array<{ commit?: { message?: string } }>>(repo, '/commits?per_page=8', token, f);
+  const lines: string[] = [];
+  if (meta) {
+    if (meta.description) lines.push('GitHub description: ' + String(meta.description).slice(0, 300));
+    if (meta.homepage) lines.push('Website: ' + String(meta.homepage).slice(0, 200));
+    if (Array.isArray(meta.topics) && meta.topics.length) lines.push('Topics: ' + meta.topics.slice(0, 15).join(', '));
+    const bits = [meta.visibility, meta.license?.name && 'licence ' + meta.license.name, meta.created_at && 'created ' + meta.created_at.slice(0, 10), meta.pushed_at && 'last push ' + meta.pushed_at.slice(0, 10), typeof meta.open_issues_count === 'number' && meta.open_issues_count + ' open issues/PRs', meta.archived && 'archived'].filter(Boolean);
+    if (bits.length) lines.push(bits.join(' · '));
+  }
+  if (langs && typeof langs === 'object') {
+    const tot = Object.values(langs).reduce((x, y) => x + (Number(y) || 0), 0) || 1;
+    const top = Object.entries(langs).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([k, v]) => k + ' ' + Math.round((100 * v) / tot) + '%');
+    if (top.length) lines.push('Languages: ' + top.join(', '));
+  }
+  try {
+    const pkg = JSON.parse(await readFile(repo, 'package.json', token, f)) as { name?: string; description?: string; dependencies?: Record<string, string>; scripts?: Record<string, string> };
+    if (pkg.description) lines.push('Package description: ' + String(pkg.description).slice(0, 300));
+    const deps = Object.keys(pkg.dependencies || {}).slice(0, 12);
+    if (deps.length) lines.push('Main packages: ' + deps.join(', '));
+  } catch { /* no package.json */ }
+  const dirs = root.filter((p) => !p.includes('/')).slice(0, 25);
+  if (lines.length && dirs.length) lines.push('Top-level files: ' + dirs.join(', '));
+  if (Array.isArray(commits)) {
+    const msgs = commits.map((c) => scrub(String(c.commit?.message || '').split('\n')[0]).slice(0, 100)).filter(Boolean).slice(0, 8);
+    if (msgs.length) lines.push('Recent work (latest commit titles):\n- ' + msgs.join('\n- '));
+  }
+  return lines.length ? '### About this repo (from GitHub)\n' + lines.join('\n') : '';
+}
+
 export async function buildBrief(repo: string, token: string, f: F = fetch, now = Date.now()): Promise<BriefDraft> {
   if (!isRepo(repo)) throw new GhError(400, 'bad_repo');
   const root = await listDir(repo, '', token, f);
   if (!root.length) throw new GhError(502, 'no_access');
   const all = [...root, ...(await listDir(repo, 'docs', token, f)), ...(await listDir(repo, 'docs/product', token, f))];
-  const files = [...new Set(all)].filter((p) => PICK.some((r) => r.test(p))).sort((a, b) => PICK.findIndex((r) => r.test(a)) - PICK.findIndex((r) => r.test(b))).slice(0, 8);
+  const files = [...new Set(all)].filter((p) => PICK.some((r) => r.test(p))).sort((a, b) => PICK.findIndex((r) => r.test(a)) - PICK.findIndex((r) => r.test(b))).slice(0, 12);
   const parts: string[] = [], sources: BriefSource[] = [];
   for (const p of files) {
-    const t = await readFile(repo, p, token, f);
+    let t = '';
+    try { t = await readFile(repo, p, token, f) } catch { continue }
     if (!t.trim()) continue;
-    const d = digest(p, t);
+    const d = digest(p, t, 1400);
     parts.push(d); sources.push({ path: p, chars: d.length });
   }
-  if (!parts.length) throw new GhError(404, 'nothing_found');
-  const brief = ('Draft brief for ' + repo + ', collected from the repo\'s own documents. Review it, trim it and save.\n\n' + parts.join('\n\n')).slice(0, 12_000);
+  const about = await aboutRepo(repo, root, token, f);
+  if (!parts.length && !about) throw new GhError(404, 'nothing_found');
+  const brief = ('Draft brief for ' + repo + ', collected from the repo and its own documents. Review it, trim it and save.\n\n' + [about, ...parts].filter(Boolean).join('\n\n')).slice(0, 16_000);
+  if (about) sources.unshift({ path: 'GitHub repo details', chars: about.length });
   return { brief, sources, fetchedAt: now };
 }

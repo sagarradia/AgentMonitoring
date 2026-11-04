@@ -24,6 +24,7 @@ test('shared todo: widen, leave one out, narrow; give and remove on a person; ad
   await page.goto('/');
   await page.fill('#password', 'e2e-password-not-real');
   await page.click('button[type=submit]');
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await expect(page).toHaveURL(/\/$/);
   const agents = async () => ((await (await page.request.get('/api/db/agents')).json()) as any).docs.map((d: any) => ({ id: d.id, ...d.data }));
   const withShared = async () => (await agents()).filter((a: any) => (a.todos || []).some((t: any) => t.sharedId));
@@ -52,6 +53,7 @@ test('shared todo: widen, leave one out, narrow; give and remove on a person; ad
   const cos = (await agents()).find((a: any) => a.id === COS);
   await page.request.put(`/api/db/agents/${COS}`, { data: { ...cos, id: undefined, todos: cos.todos.map((t: any) => (t.sharedId ? { ...t, status: 'doing' } : t)) } });
   await page.reload();
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await page.click('.tab[data-tab="caps"]');
   await page.click('[data-act="cap-tab"][data-sub="shared"]');
   await page.click('[data-act="x-edit"][data-kind="shared"]');
@@ -106,6 +108,7 @@ test('starter plugins show as loaded by default on every agent', async ({ page }
   await page.goto('/');
   await page.fill('#password', 'e2e-password-not-real');
   await page.click('button[type=submit]');
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await page.click('.tab[data-tab="g:people"]');
   await page.click(`[data-act="dirsel"][data-id="${CTO}"]`);
   const ap = page.locator('.ap');

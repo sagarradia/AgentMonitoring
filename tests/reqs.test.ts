@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { cancel, decide, fill, newReq, type Req } from '@/lib/reqs';
 
-const ok = (o: Record<string, unknown> = {}) => newReq({ company: 'o__a', dept: 'Marketing', designation: 'junior', reason: 'We need content for launch', ...o }, 'r1', 1000) as Req;
+const ok = (o: Record<string, unknown> = {}) => newReq({ company: 'o__a', dept: 'Marketing', seniority: 'junior', reason: 'We need content for launch', ...o }, 'r1', 1000) as Req;
 describe('requisitions', () => {
   it('needs a company, a department and a reason, and names the role', () => {
     expect(newReq({ dept: 'Marketing', reason: 'long enough reason' }, 'x')).toMatch(/company/);
     expect(newReq({ company: 'c', dept: 'Nope', reason: 'long enough reason' }, 'x')).toMatch(/department/);
     expect(newReq({ company: 'c', dept: 'Finance', reason: 'short' }, 'x')).toMatch(/why/);
-    const r = ok(); expect(r.title).toBe('Marketing Junior'); expect(r.status).toBe('requested'); expect(r.by).toBe('owner');
+    const r = ok(); expect(r.title).toBe('Junior Content Writer'); expect(r.status).toBe('requested'); expect(r.by).toBe('owner');
   });
   it('only the owner step changes it: approve, then fill; declining needs a reason', () => {
     const r = ok();

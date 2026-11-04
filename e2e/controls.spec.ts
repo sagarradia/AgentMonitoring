@@ -7,6 +7,7 @@ test('pause, rest with a timer, backup cover, and live progress bars', async ({ 
   await page.goto('/');
   await page.fill('#password', 'e2e-password-not-real');
   await page.click('button[type=submit]');
+  await page.click('[data-act="mode"][data-mode="agents"]');
   await expect(page).toHaveURL(/\/$/);
 
   // Live tab: one overall bar, then a bar per team and per ticket.

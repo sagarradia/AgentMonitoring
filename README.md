@@ -173,3 +173,9 @@ Companies tab > Hiring limits. Set a most-agents and/or most-capacity limit at f
 - **HR desk** (People tab) is the default HR function: anyone can raise a requisition, the desk prepares the hire and checks limits, only the owner approves. Records live in `meta/reqs`. Agents cannot raise requisitions themselves yet.
 - **Start a new company** (People, Companies) records a company in the app only; no GitHub repo is created. "Add the first agent" opens the build form as a Leadership head.
 - **Hiring requests from chat:** in an agent's chat, "Ask what help it needs", then "Capture commitments". Any hire the agent asked for appears as a proposal; applying it sends a requisition to the HR desk. The owner still approves.
+
+## Navigation and roles (Nov 2026)
+
+- Three main views: **Companies** (master company with budget allocations, one card per company, Org chart, HR desk), **Projects** (the GitHub repos) and **Agents** (Overview, Progress, People, Work, Capabilities, Connections). Every repo is a company; picking a repo on the left shows only that company, plus the master details.
+- **Seniority** (Head, Lead, Experienced, Junior) is separate from **Designation** (the job title, such as Developer or Test Automation Engineer). The designation list depends on the department and the seniority (`lib/roles.ts`).
+- "Collect from GitHub" now also reads the repo's description, topics, languages, package details, recent work and up to 12 documents.
