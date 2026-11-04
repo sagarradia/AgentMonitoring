@@ -97,7 +97,7 @@ describe('routes', () => {
     expect((await Cron.GET(new Request('http://x/api/feed/cron'))).status).toBe(404);
     process.env.CRON_SECRET = 's3cret-not-real';
     expect((await Cron.GET(new Request('http://x/api/feed/cron', { headers: { authorization: 'Bearer nope' } }))).status).toBe(401);
-    expect((await Cron.GET(new Request('http://x/api/feed/cron', { headers: { authorization: 'Bearer s3cret-not-real' } }))).status).toBe(503);
+    expect((await Cron.GET(new Request('http://x/api/feed/cron', { headers: { authorization: 'Bearer s3cret-not-real' } }))).status).toBe(200);   // no GitHub token: still ends rests
   });
   it('control needs the login and reports when GitHub is not connected', async () => {
     expect((await Control.GET(new Request('http://x/api/control'))).status).toBe(401);
