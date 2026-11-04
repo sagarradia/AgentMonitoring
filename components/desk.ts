@@ -14,6 +14,7 @@ import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, 
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
+import { LEVELS, agentUnits, cleanLimit, cleanRate, companyUsage, hireCheck, labelOf, modelUnits, overLimits, rupees, unitCap, usageOf, whoOf } from '@/lib/budget';
 import { DEPARTMENTS, TECH, deptOf, groupBy, techOf, ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
 import { MEMORY_OPTIONS, allHelpers, brainOf, defaultBrain, isLeader as isLeaderT, recommendModel, suggestSubs } from '@/lib/taskplan';
 import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefaults, extrasPrompt, applyExtras } from '@/lib/wizard-options';
@@ -39,7 +40,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,lm:{level:'company',company:'',target:'',maxAgents:'',maxUnits:'',maxRupees:''},orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -454,7 +455,9 @@ function createAgent(){
   var w=S.wizard,f=w.fields;
   if(!f.name.trim()||!f.role.trim()){w.error='Give the agent a name and a role.';render();return}
   var s=fromFields(f);
-  var a={id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
+  var lead=isLeaderT({role:s.role,name:s.name}),rec=recommendModel(w.task,atModels(),lead),units=modelUnits(rec.id||'opus55',lead);
+  if(!gate({company:w.projectId,dept:deptOf({role:s.role,name:s.name}),role:s.role},units,w,'create:'+s.name)){w.error=w.err;return}
+  var a={model:rec.id||'',id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
     purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,mustNot:s.mustNot,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,
     routines:[{name:'Status update to '+(s.reportsTo||'the owner'),cadence:w.extras.cadence,state:'planned',next:'',note:'Set when the agent was built'}],
     brain:w.brain||defaultBrain({role:s.role,name:s.name}),
@@ -603,6 +606,12 @@ document.addEventListener('click',function(e){
   else if(act==='mv-open'){var ma=S.agents.filter(function(x:any){return x.id===id})[0];if(ma){S.mv={id:id,kind:el.dataset.kind,to:'',until:isoPlus(14),reason:''};render()}}
   else if(act==='mv-close'){S.mv=null;render()}
   else if(act==='orgby'){S.orgBy=el.dataset.by;render()}
+  else if(act==='lm-add'){
+    var og=orgDoc(),lmr=cleanLimit(Object.assign({},S.lm,{company:S.lm.company||companyIds()[0]}),'l'+Date.now().toString(36));
+    if(typeof lmr==='string'){toast(lmr);return}
+    og.limits.push(lmr);S.org=og;persist('meta','org',og);S.lm={level:S.lm.level,company:S.lm.company,target:'',maxAgents:'',maxUnits:'',maxRupees:''};render();toast('Limit added');
+  }
+  else if(act==='lm-del'){var og2=orgDoc();og2.limits=og2.limits.filter(function(x:any){return x.id!==id});S.org=og2;persist('meta','org',og2);render();toast('Limit removed')}
   else if(act==='mv-ok')moveApply();
   else if(act==='loan-end'){mutate(id,function(a:any){endLoan(a,'returned early by you')});toast('Returned to the home company')}
   else if(act==='bench-toggle'){mutate(id,function(a:any){setBench(a,!a.bench)})}
@@ -714,6 +723,7 @@ document.addEventListener('input',function(e){
   else if(t.dataset.atq!==undefined&&S.at){S.at.q=t.value;render()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
+  else if(t.dataset.lmf&&t.dataset.lmf!=='level'&&t.dataset.lmf!=='company'){S.lm[t.dataset.lmf]=t.value}
   else if(t.dataset.brief&&S.bd[t.dataset.brief]){S.bd[t.dataset.brief].text=t.value}
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
@@ -755,6 +765,8 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
+  else if(t.dataset.lmf){S.lm[t.dataset.lmf]=t.value;if(t.dataset.lmf==='level'||t.dataset.lmf==='company'){S.lm.target='';render()}}
+  else if(t.dataset.corate){var cr=cleanRate(t.value),og3=orgDoc();if(cr)og3.rates[t.dataset.corate]=cr;else delete og3.rates[t.dataset.corate];S.org=og3;persist('meta','org',og3);render();toast(cr?'Rupee rate saved':'Rupee rate cleared')}
   else if(t.dataset.onb&&true){mutate(t.dataset.onb,function(a:any){setOnboarding(a,t.value,t.checked)})}
   else if(t.dataset.cosite){var cs=String(t.value).trim(),cv=safeUrl(cs);if(cs&&!cv){toast('Use a web address that starts with https://');return}var og=orgDoc();og.companies[t.dataset.cosite]=Object.assign({},og.companies[t.dataset.cosite],{site:cv});S.org=og;persist('meta','org',og);render();toast(cv?'Website saved':'Website cleared')}
   else if(t.dataset.ebm!==undefined&&S.edit){S.edit.f.brain.memory=tgl(S.edit.f.brain.memory,t.value,t.checked)}
@@ -768,6 +780,7 @@ document.addEventListener('change',function(e){
   else if(t.dataset.atf==='text'&&S.at){S.at.text=t.value;atDefaults(S.at);var pd=document.querySelector('details.plan');if(pd)pd.outerHTML=atPlanHTML()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
+  else if(t.dataset.lmf&&t.dataset.lmf!=='level'&&t.dataset.lmf!=='company'){S.lm[t.dataset.lmf]=t.value}
   else if(t.dataset.brief&&S.bd[t.dataset.brief]){S.bd[t.dataset.brief].text=t.value}
   else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
   else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
@@ -1296,7 +1309,15 @@ async function setPause(paused:any){
   render();
 }
 /* ---------- companies, org chart, loans and the HR file ---------- */
-function orgDoc(){var o=S.org?clone(S.org):{};if(!o.companies)o.companies={};return o}
+function orgDoc(){var o=S.org?clone(S.org):{};if(!o.companies)o.companies={};if(!Array.isArray(o.limits))o.limits=[];if(!o.rates)o.rates={};return o}
+function agentName(id:any){var a=S.agents.filter(function(x:any){return x.id===id})[0];return a?a.name:id}
+/* Returns true when the change keeps every limit. Otherwise it explains once and lets the owner approve going over by repeating the action. */
+function gate(who:any,units:any,holder:any,key:string){
+  var o=orgDoc(),c=hireCheck(o.limits,o.rates,S.agents,who,units,agentName);
+  if(c.ok){holder.overOk='';holder.err='';return true}
+  if(holder.overOk===key){holder.overOk='';holder.err='';return true}
+  holder.overOk=key;holder.err='This goes over a limit you set: '+c.reasons.join('; ')+'. Repeat the same action to approve going over.';render();return false;
+}
 function isoPlus(days:any){return new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
 function coName(id:any){var n=fullName(S.repos,id);return n.indexOf('/')>=0?n.split('/')[1]:n}
 function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
@@ -1359,15 +1380,38 @@ function companiesView(list:any){
     var man=((S.org&&S.org.companies&&S.org.companies[pid])||{}).site||'';
     h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small></div>'+siteBtn(pid)+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
      +'<div class="chips"><span class="chip">'+c.total+' people</span><span class="chip">'+c.active+' active</span>'+(c.resting?'<span class="chip">'+c.resting+' resting</span>':'')+(c.paused?'<span class="chip">'+c.paused+' paused</span>':'')+(c.loanedOut?'<span class="chip">'+c.loanedOut+' lent out</span>':'')+(c.loanedIn?'<span class="chip">'+c.loanedIn+' borrowed</span>':'')+(c.bench?'<span class="chip">'+c.bench+' on bench</span>':'')+(fr&&fr.openPRs?'<span class="chip">'+fr.openPRs+' open pull requests</span>':'')+'</div>'
+     +(function(){var u=companyUsage(S.agents,pid),rt=(orgDoc().rates||{})[pid],rr=rupees(u.units,rt);return '<p class="hint">Using '+u.heads+' agents and '+u.units+' capacity units'+(rr?' (about ₹'+rr+' a month)':'')+'.</p>'})()
      +(pct!=null?'<div class="pbar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div><p class="hint">'+c.done+' of '+c.assigned+' tickets done ('+pct+'%)</p>':'<p class="hint">No tickets recorded.</p>')
-     +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div></div>';
+     +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div>'
+     +'<div class="fld"><label for="cr-'+esc(pid)+'">Rupees per capacity unit per month (optional)</label><input type="text" id="cr-'+esc(pid)+'" data-corate="'+esc(pid)+'" value="'+esc(((orgDoc().rates||{})[pid])||'')+'" placeholder="Leave empty to count units only"></div></div>';
   });
-  h+='</div>';
+  h+='</div>'+limitsBlock();
   var bench=S.agents.filter(function(a:any){return a.bench}),loans=S.agents.filter(function(a:any){return activeLoan(a)});
   h+='<div class="block" style="margin-top:16px"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Agents any company may borrow. Put someone on the bench from their HR file.</p>'
    +(bench.length?'<ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span> <button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+esc(a.id)+'">Lend…</button></li>'}).join('')+'</ul>':'<p class="hint">Nobody is on the bench.</p>')+'</div>';
   h+='<div class="block" style="margin-top:16px"><h2>Loans in force · '+loans.length+'</h2>'+(loans.length?'<ul class="cl">'+loans.map(function(a:any){var l=activeLoan(a);return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(coName(a.projectId))+' to '+esc(coName(l.to))+' until '+esc(l.until)+' · '+esc(l.reason)+'</span> <button class="btn small" data-act="loan-end" data-id="'+esc(a.id)+'">Return now</button></li>'}).join('')+'</ul>':'<p class="hint">No loans.</p>')+'</div>';
   return h+'<p class="hint">Websites come from the homepage on GitHub, or the address of the latest deployment (Vercel reports it there). Loans end by themselves on their last day. All of this is a record here: it does not change real role files or start runs.</p>';
+}
+function limitsBlock(){
+  var o=orgDoc(),ids=companyIds(),lm=S.lm,co=lm.company||ids[0]||'';
+  var h='<div class="block" style="margin-top:16px"><h2>Hiring limits · '+o.limits.length+'</h2><p class="hint">Limits keep hiring tight. Each agent counts as capacity units, a rough measure of how much of your Claude plan it uses: Haiku 1, Sonnet 2, Opus 4, plus 1 for its own brain. Paused agents count as zero. A hire, loan or upgrade that breaks a limit is stopped until you repeat it to approve going over. These are estimates, not bills.</p>';
+  if(o.limits.length){
+    h+='<div class="sheetwrap"><table class="sheet"><thead><tr><th>Applies to</th><th>Company</th><th>Agents</th><th>Capacity</th><th></th></tr></thead><tbody>'+o.limits.map(function(l:any){
+      var u=usageOf(S.agents,l,undefined),cap=unitCap(l,o.rates),rt=o.rates[l.company],over=(l.maxAgents&&u.heads>l.maxAgents)||(cap&&u.units>cap);
+      return '<tr><td>'+esc(labelOf(l,agentName))+'</td><td>'+esc(coName(l.company))+'</td><td'+(l.maxAgents&&u.heads>l.maxAgents?' class="bad"':'')+'>'+(l.level==='person'?'—':u.heads+(l.maxAgents?' of '+l.maxAgents:''))+'</td><td'+(cap&&u.units>cap?' class="bad"':'')+'>'+u.units+(cap?' of '+cap:'')+' units'+(l.maxRupees?' <span class="hint">(₹'+l.maxRupees+(rt?'':', set a rupee rate to count this')+')</span>':'')+'</td><td>'+(over?'<span class="pill bad">Over</span> ':'')+'<button class="btn small" data-act="lm-del" data-id="'+esc(l.id)+'">Remove</button></td></tr>';
+    }).join('')+'</tbody></table></div>';
+  }else h+='<p class="hint">No limits yet.</p>';
+  var tgt='';
+  if(lm.level==='department')tgt='<div class="fld"><label for="lm-t">Department</label><select id="lm-t" data-lmf="target"><option value="">Choose</option>'+DEPARTMENTS.map(function(d:any){return '<option'+(lm.target===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')+'</select></div>';
+  else if(lm.level==='role')tgt='<div class="fld"><label for="lm-t">A word in the role</label><input type="text" id="lm-t" data-lmf="target" value="'+esc(lm.target)+'" placeholder="For example developer"></div>';
+  else if(lm.level==='person')tgt='<div class="fld"><label for="lm-t">Person</label><select id="lm-t" data-lmf="target"><option value="">Choose</option>'+S.agents.filter(function(a:any){return a.projectId===co}).map(function(a:any){return '<option value="'+esc(a.id)+'"'+(lm.target===a.id?' selected':'')+'>'+esc(a.name)+'</option>'}).join('')+'</select></div>';
+  h+='<div class="cd" style="margin-top:10px"><b>Add a limit</b><div class="two"><div class="fld"><label for="lm-l">Level</label><select id="lm-l" data-lmf="level">'+LEVELS.map(function(x:any){return '<option value="'+x[0]+'"'+(lm.level===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div>'
+   +'<div class="fld"><label for="lm-c">Company</label><select id="lm-c" data-lmf="company">'+ids.map(function(x:any){return '<option value="'+esc(x)+'"'+(co===x?' selected':'')+'>'+esc(coName(x))+'</option>'}).join('')+'</select></div></div>'+tgt
+   +'<div class="two">'+(lm.level==='person'?'':'<div class="fld"><label for="lm-a">Most agents</label><input type="text" id="lm-a" data-lmf="maxAgents" value="'+esc(lm.maxAgents)+'" placeholder="For example 8"></div>')
+   +'<div class="fld"><label for="lm-u">Most capacity units</label><input type="text" id="lm-u" data-lmf="maxUnits" value="'+esc(lm.maxUnits)+'" placeholder="For example 16"></div>'
+   +'<div class="fld"><label for="lm-r">Most rupees a month</label><input type="text" id="lm-r" data-lmf="maxRupees" value="'+esc(lm.maxRupees)+'" placeholder="Needs a rupee rate on the company"></div></div>'
+   +'<div class="ctlbtns"><button class="btn small primary" data-act="lm-add">Add limit</button></div></div></div>';
+  return h;
 }
 function moveHTML(){
   var m=S.mv;if(!m)return '';
@@ -1376,11 +1420,12 @@ function moveHTML(){
   return '<div class="scrim" data-act="mv-close"></div><div class="modal" role="dialog" aria-label="'+(lendIt?'Lend':'Move')+' '+esc(a.name)+'"><div class="modal-head"><h2>'+(lendIt?'Lend ':'Move for good: ')+esc(a.name)+'</h2><p>Home company: '+esc(coName(a.projectId))+'</p></div><div class="modal-body">'
    +'<div class="fld"><label for="mv-to">To which company?</label><select id="mv-to" data-mvf="to"><option value="">Choose a company</option>'+others.map(function(x:any){return '<option value="'+esc(x)+'"'+(m.to===x?' selected':'')+'>'+esc(coName(x))+'</option>'}).join('')+'</select></div>'
    +(lendIt?'<div class="fld"><label for="mv-until">Until (last day)</label><input type="date" id="mv-until" data-mvf="until" value="'+esc(m.until)+'"></div><div class="fld"><label for="mv-reason">What will it work on?</label><textarea id="mv-reason" rows="2" data-mvf="reason" placeholder="For example Security review of the upload screen">'+esc(m.reason)+'</textarea></div>':'<p class="hint">The agent leaves its manager and backup behind: name a new manager afterwards. Its tasks and history stay with it.</p>')
-   +'<p class="hint">Approving this is your decision as owner. While on loan, the borrowing company\'s guardrails also apply to the agent, and it is told to keep its home company\'s private details to itself. This is a record and a chat instruction: real runs follow the role files.</p></div>'
+   +(m.err?'<div class="err">'+esc(m.err)+'</div>':'')+'<p class="hint">Approving this is your decision as owner. While on loan, the borrowing company\'s guardrails also apply to the agent, and it is told to keep its home company\'s private details to itself. This is a record and a chat instruction: real runs follow the role files.</p></div>'
    +'<div class="modal-foot"><button class="btn" data-act="mv-close">Cancel</button><button class="btn primary" data-act="mv-ok">'+(lendIt?'Approve loan':'Approve move')+'</button></div></div>';
 }
 function moveApply(){
   var m=S.mv;if(!m)return;var a=S.agents.filter(function(x:any){return x.id===m.id})[0];if(!a)return;
+  if(m.to&&!gate({id:a.id,company:m.to,dept:deptOf(a),role:String(a.role||a.name||'')},agentUnits(a),m,'move:'+m.to))return;
   var er=m.kind==='lend'?lendIn(a,m.to,m.until,m.reason):transferIn(a,m.to);
   if(er){toast(er);return}
   persist('agents',a.id,a);S.mv=null;render();toast(m.kind==='lend'?'Lent to '+coName(a.loan.to):'Moved to '+coName(a.projectId));
@@ -1394,7 +1439,7 @@ function hrBlock(a:any){
    +'<div><span>Department</span><b>'+esc(deptOf(a))+'</b></div><div><span>Manager</span><b>'+esc(a.reportsTo||'None named')+'</b></div>'
    +'<div><span>Backup</span><b>'+esc(backup||'None named')+'</b></div>'
    +'<div><span>Working for</span><b>'+(ln?esc(coName(ln.to))+' until '+esc(ln.until):'Home company')+'</b></div>'
-   +'<div><span>Onboarding</span><b>'+ob.done+' of '+ob.total+'</b></div><div><span>Review</span>'+chip+'</div></div>';
+   +'<div><span>Capacity</span><b>'+agentUnits(a)+' units'+(function(){var r=rupees(agentUnits(a),(orgDoc().rates||{})[a.projectId]);return r?' (₹'+r+')':''})()+'</b></div><div><span>Onboarding</span><b>'+ob.done+' of '+ob.total+'</b></div><div><span>Review</span>'+chip+'</div></div>';
   if(ln)h+='<p class="hint">On loan: '+esc(ln.reason)+'</p>';
   h+='<div class="ctlbtns"><button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+id+'">Lend…</button><button class="btn small" data-act="mv-open" data-kind="move" data-id="'+id+'">Move for good…</button>'
    +(ln?'<button class="btn small" data-act="loan-end" data-id="'+id+'">Return now</button>':'')
@@ -1466,6 +1511,7 @@ function overviewView(list){
     needs=needs.slice(0,8);
   }
   needs=needs.concat(orgNeeds(list));
+  (function(){var o=orgDoc();overLimits(o.limits,o.rates,S.agents,agentName).slice(0,4).forEach(function(t:any){needs.push({title:'Over a hiring limit',why:' '+t})})})();
   var h='<div class="ov"><div class="ov-hero'+(stalled?'':' ok')+'"><h2>'+esc(head)+'</h2><p>'+esc(sub)+'</p></div>';
   h+='<div class="ov-tiles"><div class="ov-tile"><b>'+pct+'%</b><span>of tickets done ('+D+' of '+A+')</span></div>'
    +'<div class="ov-tile"><b>'+O+'</b><span>still open</span></div>'
@@ -1951,13 +1997,18 @@ function editHTML(){
   h+='<div class="fld"><label for="ef-model">Model now</label><select id="ef-model" data-ef="model">'+modelOpts(e.f.model,'Not set')+'</select></div>'
    +'<div class="fld"><label for="ef-modelPlanned">Model planned</label><select id="ef-modelPlanned" data-ef="modelPlanned">'+modelOpts(e.f.modelPlanned,'Not set')+'</select><span class="hint">Models that are not connected cannot be chosen. Connect them under Connections.</span></div>'
    +'<h3 style="margin-top:10px">Brain and memory</h3>'+brainBox(e.f.brain,'eb')
-   +'<p class="hint">If you rename this agent, update Reports to on the agents that report to it: they match by name. This edits the record on this page, not the role file in the repo.</p></div></aside>';
+   +(e.err?'<div class="err">'+esc(e.err)+'</div>':'')+'<p class="hint">If you rename this agent, update Reports to on the agents that report to it: they match by name. This edits the record on this page, not the role file in the repo.</p></div></aside>';
   return h;
 }
 function lines(v:any){return String(v==null?'':v).split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean)}
 function saveEdit(){
   var e=S.edit;if(!e)return;var f=e.f;
   if(!String(f.name||'').trim()){toast('Name is required');return}
+  var ea0=S.agents.filter(function(x:any){return x.id===e.id})[0];
+  if(ea0&&(f.model||'')!==(ea0.model||'')||ea0&&!!(f.brain&&f.brain.own)!==!!(brainOf(ea0).own)){
+    var nm=f.model||ea0.model||ea0.modelPlanned||'opus55',un=modelUnits(nm,!!(f.brain&&f.brain.own));
+    if(!gate({id:ea0.id,company:whoOf(ea0).company,dept:f.dept||deptOf(ea0),role:String(f.role||ea0.role||'')},un,e,'edit:'+nm+(f.brain&&f.brain.own)))return;
+  }
   mutate(e.id,function(a){
     var before=JSON.parse(JSON.stringify(a));before.brain=before.brain||brainOf(a);
     ['name','role','level','reportsTo','status','purpose','handsOff','reads'].forEach(function(k){if(f[k]!=null)a[k]=String(f[k]).trim()});

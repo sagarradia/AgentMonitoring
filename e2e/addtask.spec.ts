@@ -105,3 +105,25 @@ test('org chart, companies with website field, lend an agent, review and change 
   await panel.locator('input[data-onb]').first().check();
   await expect(panel.locator('.hr')).toContainText('Review recorded: 4 of 5');
 });
+
+test('hiring limits: add one, see it, and a loan over the limit is stopped until repeated', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="co"]');
+  await expect(page.locator('.block', { hasText: 'Hiring limits' })).toBeVisible();
+  await page.selectOption('#lm-l', 'department');
+  await page.selectOption('#lm-t', 'Engineering');
+  await page.fill('#lm-a', '1');
+  await page.click('[data-act="lm-add"]');
+  await expect(page.locator('#toast')).toContainText('Limit added');
+  await expect(page.locator('.sheet', { hasText: 'Department Engineering' })).toContainText('Over');
+  await page.locator('[data-act="lm-del"]').first().click();
+  await expect(page.locator('.block', { hasText: 'Hiring limits' })).toContainText('No limits yet');
+  // an empty limit is refused
+  await page.selectOption('#lm-l', 'company');
+  await page.click('[data-act="lm-add"]');
+  await expect(page.locator('#toast')).toContainText('Set at least one limit');
+});

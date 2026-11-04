@@ -163,3 +163,6 @@ The server ends a rest when its time is up (and clears that agent's `agent-pause
 ## Company brief from GitHub, departments and technologies
 - **Collect from GitHub** (project brief box, or Companies > Brief) reads the repo's README, CLAUDE.md and docs and drafts a brief. Nothing is saved until you click Save brief. Secret-looking lines are removed. No AI service is called.
 - Org chart can be grouped by reporting line, department, technology, or a flat list. Departments and technologies are worked out from each role and its tools; set them yourself in Edit.
+
+## Hiring limits
+Companies tab > Hiring limits. Set a most-agents and/or most-capacity limit at four levels: whole company, department, role (a word in the role) or an individual (a cost ceiling per agent). Capacity units are a rough measure of plan use per agent (Haiku 1, Sonnet 2, Opus 4, +1 for its own brain; paused agents count 0). Optional rupee rate per company turns units into rupees. A hire, a loan or a model/brain upgrade that breaks a limit is stopped with the reason; repeating the same action approves going over. Limits are estimates, not bills, and are checked in this app only.
