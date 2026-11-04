@@ -1,5 +1,7 @@
 import { fail, guard, json, logError, readJson } from '@/lib/server/http';
 import { GhError, controlCfg, getControl, isAgentKey, setAgentPaused, setPaused } from '@/lib/server/github';
+import { expireRests } from '@/lib/server/rest';
+import { getStore } from '@/lib/server/store';
 import { isPlainObject } from '@/lib/server/validate';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +14,7 @@ export async function GET(req: Request) {
   if (blocked) return blocked;
   const token = process.env.GITHUB_TOKEN, cfg = controlCfg();
   if (!token) return json({ configured: false, ...cfg });
-  try { return json({ configured: true, ...(await getControl(cfg, token)), ...cfg }) }
+  try { await expireRests(getStore(), token, cfg); return json({ configured: true, ...(await getControl(cfg, token)), ...cfg }) }
   catch (e) { if (e instanceof GhError) return json({ configured: true, error: e.code, ...cfg }); logError('control.get', e); return fail(502, 'upstream_error') }
 }
 
