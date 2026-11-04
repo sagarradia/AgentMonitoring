@@ -57,3 +57,23 @@ describe('company view', () => {
   });
   it('only lets web addresses through', () => { expect(safeUrl('https://x.vercel.app')).toMatch(/^https:/); expect(safeUrl('javascript:alert(1)')).toBe(''); expect(safeUrl(5)).toBe('') });
 });
+
+import { DEPARTMENTS, deptOf, groupBy, techOf } from '@/lib/org';
+describe('departments and technologies', () => {
+  it('infers a department from the role and lets the owner override it', () => {
+    expect(deptOf({ role: 'Security Junior: Code Review' })).toBe('Security');
+    expect(deptOf({ role: 'QA Junior: Test Automation' })).toBe('Quality');
+    expect(deptOf({ role: 'CTO (Head of Engineering)' })).toBe('Engineering');
+    expect(deptOf({ role: 'Chief of Staff (Orchestrator)' })).toBe('Leadership');
+    expect(deptOf({ role: 'Content Junior: Legal Assistant' })).toBe('Legal and compliance');
+    expect(deptOf({ role: 'Cook' })).toBe('Other');
+    expect(deptOf({ role: 'Cook', dept: 'Operations' })).toBe('Operations');
+    expect(DEPARTMENTS).toContain('Finance');
+  });
+  it('reads technologies from tools and duties unless set, and groups people', () => {
+    expect(techOf({ tools: ['GitHub', 'Slack'], requirements: ['TypeScript and Postgres'] })).toEqual(['TypeScript', 'Postgres', 'GitHub', 'Slack']);
+    expect(techOf({ tech: ['Rust'], tools: ['GitHub'] })).toEqual(['Rust']);
+    const g = groupBy([{ n: 1, d: ['A'] }, { n: 2, d: ['A', 'B'] }], (x) => x.d);
+    expect(g.map(([k, v]) => [k, v.length])).toEqual([['A', 2], ['B', 1]]);
+  });
+});

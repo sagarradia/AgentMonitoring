@@ -94,7 +94,7 @@ export function setOnboarding(a: OrgAgent, item: string, on: boolean, now = Date
 }
 export const onboardingProgress = (a: OrgAgent) => ({ done: ONBOARDING.filter((i) => a.hr?.onboarding?.[i]).length, total: ONBOARDING.length });
 
-const TRACKED: Array<[string, string]> = [['role', 'Role'], ['level', 'Level'], ['reportsTo', 'Reports to'], ['status', 'Status'], ['model', 'Model now'], ['modelPlanned', 'Model planned']];
+const TRACKED: Array<[string, string]> = [['role', 'Role'], ['dept', 'Department'], ['level', 'Level'], ['reportsTo', 'Reports to'], ['status', 'Status'], ['model', 'Model now'], ['modelPlanned', 'Model planned']];
 /** Plain-language list of what changed between two versions of an agent, for the change log. */
 export function diffChanges(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
   const out: string[] = [];
@@ -130,4 +130,41 @@ export function orgNeeds(agents: OrgAgent[], now = Date.now()): Array<{ title: s
   const soon = agents.filter((a) => { const l = activeLoan(a, now); return l && Date.parse(l.until) - now < 3 * DAY });
   if (soon.length) out.push({ title: 'Loans ending soon', why: ' ' + soon.map((a) => a.name).slice(0, 4).join(', ') + ' return within 3 days.' });
   return out;
+}
+
+/* ---- departments (functions) and technologies, so a company can also be read the way a real one is ---- */
+export const DEPARTMENTS = ['Leadership', 'Product', 'Engineering', 'Security', 'Quality', 'Design', 'Data', 'Marketing', 'Sales', 'Support', 'Finance', 'Legal and compliance', 'People and HR', 'Operations', 'Research', 'Other'] as const;
+const DEPT_RX: Array<[string, RegExp]> = [
+  ['Leadership', /\b(chief of staff|ceo|coo|founder|head of (everything|company)|orchestrator|managing)\b/i],
+  ['Security', /\b(secur\w*|infosec|threat|red team|penetration|dependency scan\w*|secrets)\b/i],
+  ['Quality', /\b(qa|quality|test\w*|exploratory)\b/i],
+  ['Legal and compliance', /\b(legal|compliance|regulat\w*|privacy officer|policy|consent|grievance)\b/i],
+  ['Finance', /\b(financ\w*|account\w*|billing|budget|cfo|payments?|invoice)\b/i],
+  ['People and HR', /\b(hr|recruit\w*|onboarding|people ops|talent)\b/i],
+  ['Marketing', /\b(market\w*|seo|content|brand|social|growth|campaign|pitch|investor)\b/i],
+  ['Sales', /\b(sales|business development|\bbd\b|lead gen\w*|account exec\w*)\b/i],
+  ['Support', /\b(support|customer success|helpdesk|service desk)\b/i],
+  ['Design', /\b(design\w*|\bux\b|\bui\b|accessib\w*|locali[sz]ation|translat\w*)\b/i],
+  ['Data', /\b(data|analytics|database|\bdb\b|schema|migration)\b/i],
+  ['Product', /\b(product|backlog|roadmap|spec writer|requirements|cpo)\b/i],
+  ['Research', /\b(research\w*|intel\w*|scout|competitor|watcher)\b/i],
+  ['Engineering', /\b(engineer\w*|develop\w*|devops|backend|frontend|mobile|web|api|cto|pipeline|release|ci\b|code|admin console)\b/i],
+  ['Operations', /\b(operations|ops|logistics|process|steward|groom\w*)\b/i],
+];
+export const deptOf = (a: { dept?: unknown; role?: string; name?: string; level?: string }): string => {
+  if (typeof a.dept === 'string' && a.dept) return a.dept;
+  const text = (a.role || '') + ' ' + (a.name || '');
+  for (const [d, rx] of DEPT_RX) if (rx.test(text)) return d;
+  return 'Other';
+};
+export const TECH = ['TypeScript', 'JavaScript', 'React', 'React Native', 'Next.js', 'Node.js', 'Python', 'Postgres', 'SQL', 'GitHub', 'Vercel', 'Docker', 'AWS', 'GCP', 'libsodium', 'Figma', 'Stripe', 'Slack', 'Notion', 'HubSpot', 'Google Analytics', 'SEO'] as const;
+export const techOf = (a: { tech?: unknown; tools?: string[]; requirements?: string[]; responsibilities?: string[]; role?: string }): string[] => {
+  if (Array.isArray(a.tech) && a.tech.length) return a.tech.filter((x): x is string => typeof x === 'string');
+  const text = [(a.tools || []).join(' '), (a.requirements || []).join(' '), (a.responsibilities || []).join(' '), a.role || ''].join(' ').toLowerCase();
+  return TECH.filter((t) => text.includes(t.toLowerCase()));
+};
+export function groupBy<T>(items: T[], keys: (x: T) => string[]): Array<[string, T[]]> {
+  const m = new Map<string, T[]>();
+  for (const x of items) for (const k of keys(x)) m.set(k, (m.get(k) || []).concat([x]));
+  return [...m.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
 }

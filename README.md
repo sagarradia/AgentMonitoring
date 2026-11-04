@@ -159,3 +159,7 @@ Guardrails, skills and plugins, and the new Shared items (todo, KPI, goal, memor
 
 ## Rests end by themselves
 The server ends a rest when its time is up (and clears that agent's `agent-paused:` label). It runs from `/api/feed/cron`, which is called every 15 minutes by `.github/workflows/tick.yml` (needs repository secrets `APP_URL` and `CRON_SECRET`, and the same `CRON_SECRET` in Vercel), once a day by Vercel Cron, and whenever the feed or control card is refreshed.
+
+## Company brief from GitHub, departments and technologies
+- **Collect from GitHub** (project brief box, or Companies > Brief) reads the repo's README, CLAUDE.md and docs and drafts a brief. Nothing is saved until you click Save brief. Secret-looking lines are removed. No AI service is called.
+- Org chart can be grouped by reporting line, department, technology, or a flat list. Departments and technologies are worked out from each role and its tools; set them yourself in Edit.
