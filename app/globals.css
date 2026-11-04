@@ -363,3 +363,13 @@ table.sheet td.stick{z-index:2}
 .pbar .ind{position:absolute;top:0;width:35%;background:linear-gradient(90deg,transparent,var(--ok),transparent);animation:pslide 1.4s linear infinite}
 @keyframes pslide{from{left:-35%}to{left:100%}}
 @media (prefers-reduced-motion:reduce){.pbar .ind{animation:none;left:0;width:100%;opacity:.45}.pbar i{transition:none}}
+
+/* scope levels, applies-to list, downloaded-file import */
+.lvl{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.lvl-t{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ap-l{list-style:none;padding:0;margin:0 0 8px;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto}
+.ap-l li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ap-l .grow{flex:1;min-width:160px;font-size:13.5px}
+.pkgc{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;background:var(--surface);font-weight:400}
+.pkgc-b{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pkg-body{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:12px/1.5 var(--mono)}
