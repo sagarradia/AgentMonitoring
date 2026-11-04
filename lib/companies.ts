@@ -27,3 +27,21 @@ export function newCompany(raw: Record<string, unknown>, taken: string[], now = 
   if (purpose) rec.purpose = purpose;
   return { id, rec, rate };
 }
+
+type Companies = Record<string, { repos?: string[]; [k: string]: unknown }>;
+/** Puts a repo in a company (taking it out of any other) or back on its own. Limits and rupee rates that were set on the repo
+    as its own company move with it. Returns a plain-language note about what moved. */
+export function setRepoIn(companies: Companies, limits: Array<{ company: string }>, rates: Record<string, number>, cid: string, repo: string, on: boolean): string {
+  const c = companies[cid];
+  if (!c || !c.custom) return 'Only a company made here can hold projects';
+  for (const k of Object.keys(companies)) if (Array.isArray(companies[k].repos)) companies[k].repos = (companies[k].repos as string[]).filter((r) => r !== repo);
+  let note = '';
+  if (on) {
+    c.repos = [...((c.repos as string[]) || []), repo];
+    const moved = limits.filter((l) => l.company === repo);
+    moved.forEach((l) => { l.company = cid });
+    if (moved.length) note = moved.length + ' hiring limit' + (moved.length === 1 ? '' : 's') + ' moved with it';
+    if (repo in rates) { if (!(cid in rates)) rates[cid] = rates[repo]; delete rates[repo]; note += (note ? '; ' : '') + 'its rupee rate was kept' }
+  }
+  return note;
+}

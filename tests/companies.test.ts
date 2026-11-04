@@ -32,3 +32,24 @@ describe('hire read from chat', () => {
     expect(cleanHire({ dept: 'Sales', designation: 'boss', note: 'Pipeline needs a closer' })?.seniority).toBe('agent');
   });
 });
+
+import { setRepoIn } from '@/lib/companies';
+import { companyOf, repoMapOf, setRepoMap } from '@/lib/org';
+describe('grouping repos under a company', () => {
+  it('puts a repo in one company at a time and moves its limits and rate', () => {
+    const companies: Record<string, any> = { co_a: { custom: true, name: 'A', repos: [] }, co_b: { custom: true, name: 'B', repos: ['o__x'] } };
+    const limits = [{ company: 'o__x' }, { company: 'o__other' }]; const rates: Record<string, number> = { o__x: 100 };
+    const note = setRepoIn(companies, limits, rates, 'co_a', 'o__x', true);
+    expect(companies.co_a.repos).toEqual(['o__x']); expect(companies.co_b.repos).toEqual([]);
+    expect(limits[0].company).toBe('co_a'); expect(limits[1].company).toBe('o__other');
+    expect(rates).toEqual({ co_a: 100 }); expect(note).toMatch(/1 hiring limit moved/);
+    setRepoIn(companies, limits, rates, 'co_a', 'o__x', false);
+    expect(companies.co_a.repos).toEqual([]);
+    expect(setRepoIn(companies, limits, rates, 'o__zzz', 'o__x', true)).toMatch(/Only a company/);
+  });
+  it('maps agents of a grouped repo to the company, and others to themselves', () => {
+    setRepoMap(repoMapOf({ co_a: { repos: ['o__x', 'o__y'] } }));
+    expect(companyOf('o__x')).toBe('co_a'); expect(companyOf('o__y')).toBe('co_a'); expect(companyOf('o__z')).toBe('o__z');
+    setRepoMap({});
+  });
+});

@@ -38,11 +38,21 @@ export function logChange(a: OrgAgent, text: string, now = Date.now()): void {
 export function activeLoan(a: OrgAgent, now = Date.now()): Loan | null {
   return a.loan && validDay(a.loan.until) && a.loan.until >= isoDay(now) ? a.loan : null;
 }
+/* Companies can group several repos. The map says which company a repo belongs to; a repo not in it is its own company. */
+let REPO_MAP: Record<string, string> = {};
+export const repoMapOf = (companies: Record<string, { repos?: string[] }> | undefined): Record<string, string> => {
+  const m: Record<string, string> = {};
+  for (const [cid, c] of Object.entries(companies || {})) for (const r of Array.isArray(c?.repos) ? c.repos : []) if (typeof r === 'string' && !(r in m)) m[r] = cid;
+  return m;
+};
+export const setRepoMap = (m: Record<string, string>): void => { REPO_MAP = m };
+/** The company a project (repo) belongs to. */
+export const companyOf = (projectId: string): string => REPO_MAP[projectId] || projectId;
 /** The company an agent works for today. */
-export const workCompany = (a: OrgAgent, now = Date.now()): string => activeLoan(a, now)?.to || a.projectId;
+export const workCompany = (a: OrgAgent, now = Date.now()): string => activeLoan(a, now)?.to || companyOf(a.projectId);
 
 export function lend(a: OrgAgent, to: string, until: string, reason: string, now = Date.now()): string | null {
-  if (!to || to === a.projectId) return 'Choose a different company';
+  if (!to || to === companyOf(a.projectId)) return 'Choose a different company';
   if (!validDay(until) || until < isoDay(now)) return 'Choose an end date that is today or later';
   if (until > isoDay(now + 366 * DAY)) return 'A loan can last at most a year. Use Transfer for a permanent move';
   if (!reason.trim()) return 'Say what the agent will work on';
@@ -60,7 +70,7 @@ export function endLoan(a: OrgAgent, why: string, now = Date.now()): boolean {
 export const expireLoan = (a: OrgAgent, now = Date.now()): boolean => !!a.loan && !activeLoan(a, now) && endLoan(a, 'time is up (automatic)', now);
 
 export function transfer(a: OrgAgent, to: string, now = Date.now()): string | null {
-  if (!to || to === a.projectId) return 'Choose a different company';
+  if (!to || to === companyOf(a.projectId)) return 'Choose a different company';
   logChange(a, 'Moved for good from ' + a.projectId.replace('__', '/') + ' to ' + to.replace('__', '/') + '. Manager cleared: name a new one.', now);
   a.projectId = to; a.reportsTo = ''; delete a.loan; delete a.backupId;
   return null;
@@ -108,8 +118,8 @@ export function diffChanges(before: Record<string, unknown>, after: Record<strin
 export interface CompanyStats { id: string; total: number; active: number; resting: number; paused: number; other: number; loanedOut: number; loanedIn: number; bench: number; done: number; assigned: number }
 export function companyStats(agents: OrgAgent[], ids: string[], now = Date.now()): CompanyStats[] {
   return ids.map((id) => {
-    const home = agents.filter((a) => a.projectId === id);
-    const s: CompanyStats = { id, total: home.length, active: 0, resting: 0, paused: 0, other: 0, loanedOut: 0, loanedIn: agents.filter((a) => a.projectId !== id && activeLoan(a, now)?.to === id).length, bench: home.filter((a) => a.bench).length, done: 0, assigned: 0 };
+    const home = agents.filter((a) => companyOf(a.projectId) === id);
+    const s: CompanyStats = { id, total: home.length, active: 0, resting: 0, paused: 0, other: 0, loanedOut: 0, loanedIn: agents.filter((a) => companyOf(a.projectId) !== id && activeLoan(a, now)?.to === id).length, bench: home.filter((a) => a.bench).length, done: 0, assigned: 0 };
     home.forEach((a) => {
       const st = a.status || 'active';
       if (st === 'active') s.active++; else if (st === 'resting') s.resting++; else if (st === 'paused') s.paused++; else s.other++;
