@@ -36,3 +36,11 @@ export function cancel(r: Req, now = Date.now()): boolean {
   if (!OPEN.includes(r.status)) return false;
   r.status = 'cancelled'; r.history.push({ at: now, text: 'Cancelled' }); return true;
 }
+
+/** A hiring request an agent made in chat, as read by Claude. Returns null if it is not usable. */
+export function cleanHire(p: Record<string, unknown>): { dept: string; designation: string; note: string } | null {
+  const dept = (DEPARTMENTS as readonly string[]).includes(String(p.dept)) ? String(p.dept) : '';
+  const note = String(p.note || '').trim().slice(0, 200);
+  if (!dept || note.length < 8) return null;
+  return { dept, designation: designationOf(String(p.designation)).id, note };
+}

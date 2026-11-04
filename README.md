@@ -171,3 +171,5 @@ Companies tab > Hiring limits. Set a most-agents and/or most-capacity limit at f
 
 - **Department and Designation** in Build an agent (template and Claude-drafted paths) pre-load duties, skills, plugins, memory, tools and guardrails from `lib/roles.ts`. Everything stays editable.
 - **HR desk** (People tab) is the default HR function: anyone can raise a requisition, the desk prepares the hire and checks limits, only the owner approves. Records live in `meta/reqs`. Agents cannot raise requisitions themselves yet.
+- **Start a new company** (People, Companies) records a company in the app only; no GitHub repo is created. "Add the first agent" opens the build form as a Leadership head.
+- **Hiring requests from chat:** in an agent's chat, "Ask what help it needs", then "Capture commitments". Any hire the agent asked for appears as a proposal; applying it sends a requisition to the HR desk. The owner still approves.

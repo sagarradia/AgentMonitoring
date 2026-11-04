@@ -12,10 +12,11 @@ import { syncAgent, syncAll, sharedFor, sharedLabel, materialises, SHARED_KINDS 
 import { readUpload, scan as scanPkg, LIMITS as PKG_LIMITS } from '@/lib/pkg';
 import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, taskState, taskPct, roll, isLead, coverFor, suggestBackup, STATE_LABEL, STATE_HELP, REST_CHOICES } from '@/lib/status';
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
-import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
+import { HOLD, TIMELINES, ROUTINES, HIRING, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
+import { newCompany } from '@/lib/companies';
 import { DESIGNATIONS, designationOf, resolveRole } from '@/lib/roles';
-import { cancel as cancelReq, decide as decideReq, fill as fillReq, newReq } from '@/lib/reqs';
+import { cleanHire, cancel as cancelReq, decide as decideReq, fill as fillReq, newReq } from '@/lib/reqs';
 import { LEVELS, agentUnits, cleanLimit, cleanRate, companyUsage, hireCheck, labelOf, modelUnits, overLimits, rupees, unitCap, usageOf, whoOf } from '@/lib/budget';
 import { DEPARTMENTS, TECH, deptOf, groupBy, techOf, ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
 import { MEMORY_OPTIONS, allHelpers, brainOf, defaultBrain, isLeader as isLeaderT, recommendModel, suggestSubs } from '@/lib/taskplan';
@@ -42,7 +43,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,reqs:null,rq:{company:'',by:'owner',dept:'',designation:'agent',reason:''},rqNote:{},lm:{level:'company',company:'',target:'',maxAgents:'',maxUnits:'',maxRupees:''},orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,nc:{name:'',site:'',purpose:'',rate:''},reqs:null,rq:{company:'',by:'owner',dept:'',designation:'agent',reason:''},rqNote:{},lm:{level:'company',company:'',target:'',maxAgents:'',maxUnits:'',maxRupees:''},orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -315,7 +316,7 @@ function chatHTML(){
   var h='<div class="scrim" data-act="chat-close"></div><aside class="panel chat" role="dialog" aria-label="Chat with '+esc(a.name)+'">';
   h+='<div class="panel-head"><div><h2>'+esc(a.name)+'</h2><p class="role">'+esc(a.role)+' · '+esc(shortName(a.projectId))+'</p></div><div class="btns"><button class="btn small" data-act="open-agent" data-id="'+esc(a.id)+'">Profile</button><button class="btn small" data-act="chat-close">Close</button></div></div>';
   h+='<p class="chat-note">Claude speaks as this role, using its role file and the records on this page. Its reasons are a reading of the records and the GitHub repo record as of the report date, not a memory of what happened.'+(can?'':' Chat is unavailable in this view.')+'</p>';
-  h+='<div class="chat-quick"><button class="btn small" data-act="chat-hold"'+dis+'>Hold to account</button><button class="btn small" data-act="chat-timelines"'+dis+'>Ask for timelines</button><button class="btn small" data-act="chat-routines"'+dis+'>Check routines</button><button class="btn small" data-act="chat-complain"'+(can?'':' disabled')+'>Complain</button></div>';
+  h+='<div class="chat-quick"><button class="btn small" data-act="chat-hold"'+dis+'>Hold to account</button><button class="btn small" data-act="chat-timelines"'+dis+'>Ask for timelines</button><button class="btn small" data-act="chat-routines"'+dis+'>Check routines</button><button class="btn small" data-act="chat-hiring"'+dis+'>Ask what help it needs</button><button class="btn small" data-act="chat-complain"'+(can?'':' disabled')+'>Complain</button></div>';
   h+='<div class="chat-log" id="chat-log">';
   if(!msgs.length&&!c.busy)h+='<p class="hint">No messages yet. Use Hold to account to ask why items are late, what blocks them and when they will be done.</p>';
   msgs.forEach(function(m){h+='<div class="msg '+(m.role==='agent'?'agent':'founder')+'"><span class="who">'+(m.role==='agent'?esc(a.name):'You')+'</span><div class="txt">'+esc(m.text)+'</div></div>'});
@@ -326,8 +327,8 @@ function chatHTML(){
     if(!c.proposals.length)h+='<p class="hint">The agent made no commitments to record. Ask for timelines, then capture again.</p>';
     else{
       c.proposals.forEach(function(p,i){
-        var list=p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis,it=list&&list[p.index],label=p.kind==='memory'?p.note:it?(it.text||it.name):'(item removed)';
-        h+='<div class="prop"><div class="grow"><b>'+({todo:'Todo',goal:'Goal',kpi:'KPI',routine:'Routine',memory:'Add to memory'}[p.kind])+':</b> '+esc(label)+'<small>'+[p.due?(p.kind==='routine'?'next run ':'due ')+p.due:'',p.status?'status '+p.status:'',p.kind==='memory'?'':p.note].filter(Boolean).map(esc).join(' · ')+'</small></div>'
+        var list=p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis,it=list&&list[p.index],label=(p.kind==='memory'||p.kind==='hire')?p.note:it?(it.text||it.name):'(item removed)';
+        h+='<div class="prop"><div class="grow"><b>'+({todo:'Todo',goal:'Goal',kpi:'KPI',routine:'Routine',memory:'Add to memory',hire:'Hiring request'}[p.kind])+':</b> '+esc(label)+'<small>'+[p.due?(p.kind==='routine'?'next run ':'due ')+p.due:'',p.status?'status '+p.status:'',p.kind==='hire'?p.dept+' · '+designationOf(p.designation).label:p.kind==='memory'?'':p.note].filter(Boolean).map(esc).join(' · ')+'</small></div>'
          +(p.state==='open'?'<span><button class="btn small primary" data-act="prop-apply" data-i="'+i+'">Apply</button> <button class="btn small" data-act="prop-skip" data-i="'+i+'">Skip</button></span>':'<span class="hint">'+(p.state==='applied'?'Applied':'Skipped')+'</span>')+'</div>';
       });
       if(c.proposals.some(function(p){return p.state==='open'}))h+='<div><button class="btn small primary" data-act="prop-all">Apply all</button></div>';
@@ -564,6 +565,7 @@ async function captureChat(){
     var ok=[] as any[];
     (Array.isArray(arr)?arr:[]).forEach(function(p:any){
       var kind=p&&p.kind;
+      if(kind==='hire'){var hh=cleanHire({dept:p.dept,designation:p.designation,note:p.note});if(hh)ok.push({kind:'hire',index:-1,due:'',status:'',note:hh.note,dept:hh.dept,designation:hh.designation,state:'open'});return}
       if(kind==='memory'){var mt=String(p.note||'').trim().slice(0,200);if(mt)ok.push({kind:'memory',index:-1,due:'',status:'',note:mt,state:'open'});return}
       var idx=Number(p&&p.index)-1,list=kind==='todo'?a.todos:kind==='goal'?a.goals:kind==='kpi'?a.kpis:kind==='routine'?a.routines:null;
       if(!list||!(idx>=0&&idx<list.length))return;
@@ -583,6 +585,10 @@ function applyProp(i:any,quiet?:any){
   var c=S.chat,a=chatAgent(),p=c&&c.proposals&&c.proposals[i];
   if(!a||!p||p.state!=='open')return;
   p.state='applied';
+  if(p.kind==='hire'){
+    var rn2=newReq({company:a.projectId,by:a.id,byName:a.name,dept:p.dept,designation:p.designation,reason:p.note},'r'+Date.now().toString(36)+i);
+    if(typeof rn2==='string'){p.state='open';toast(rn2);return}
+    p.state='applied';var rd5=reqsDoc();rd5.items.push(rn2);S.reqs=rd5;persist('meta','reqs',rd5);if(!quiet){render();toast('Requisition sent to the HR desk')}return}
   if(p.kind==='memory'){(a.memory=a.memory||[]).push({text:p.note,at:today(),src:'chat'});if(!quiet){persist('agents',a.id,a);render()}return}
   var it=(p.kind==='todo'?a.todos:p.kind==='goal'?a.goals:p.kind==='routine'?a.routines:a.kpis)[p.index];
   if(it&&p.kind==='routine'){if(p.due)it.next=p.due;if(p.note)it.note=p.note}
@@ -720,6 +726,18 @@ document.addEventListener('click',function(e){
   else if(act==='sync')sync();
   else if(act==='save-brief'){var t=document.getElementById('brief-edit');if(t){saveBrief(id,t.value);delete S.bd[id];render()}}
   else if(act==='brief-import')briefImport(id);
+  else if(act==='nc-add'){
+    var og5=orgDoc(),nr=newCompany(S.nc,companyIds().concat(Object.keys(og5.companies)));
+    if(typeof nr==='string'){toast(nr);return}
+    og5.companies[nr.id]=nr.rec;if(nr.rate)og5.rates[nr.id]=nr.rate;
+    S.nc={name:'',site:'',purpose:'',rate:''};S.org=og5;persist('meta','org',og5);render();toast('Company created. Add the first agent.');
+  }
+  else if(act==='co-first'){
+    openWizard(id);var wf=S.wizard;wf.task='Plan the company: decide which functions are needed, then raise requisitions on the HR desk. '+(((orgDoc().companies[id]||{}).purpose)||'');
+    wf.extras.dept='Leadership';wf.extras.designation='head';wf.extras=refreshDefaults(wf.extras,wf.task,pluginNames());
+    var rf2=resolveRole('Leadership','head');wf.brain={own:rf2.brainOwn,memory:rf2.memory.slice(),note:''};render();
+  }
+  else if(act==='chat-hiring')sendChat(HIRING);
   else if(act==='co-brief'){S.scope=id;S.tab='co';render()}
   else if(act==='todo-cycle')mutate(id,function(a){var t=a.todos[i],o=['todo','doing','done'];t.status=o[(o.indexOf(t.status||'todo')+1)%3]});
   else if(act==='todo-add'){var ti=document.getElementById('todo-new');if(ti&&ti.value.trim()){var v=ti.value.trim();ti.value='';mutate(id,function(a){(a.todos=a.todos||[]).push({text:v,status:'todo',due:''})})}}
@@ -754,6 +772,7 @@ document.addEventListener('input',function(e){
   else if(t.dataset.lmf&&t.dataset.lmf!=='level'&&t.dataset.lmf!=='company'){S.lm[t.dataset.lmf]=t.value}
   else if(t.dataset.rqf&&t.dataset.rqf!=='company'&&t.dataset.rqf!=='by'){S.rq[t.dataset.rqf]=t.value}
   else if(t.dataset.rqnote){S.rqNote[t.dataset.rqnote]=t.value}
+  else if(t.dataset.ncf){S.nc[t.dataset.ncf]=t.value}
   else if(t.dataset.brief&&S.bd[t.dataset.brief]){S.bd[t.dataset.brief].text=t.value}
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
@@ -1357,8 +1376,8 @@ function gate(who:any,units:any,holder:any,key:string){
   holder.overOk=key;holder.err='This goes over a limit you set: '+c.reasons.join('; ')+'. Repeat the same action to approve going over.';render();return false;
 }
 function isoPlus(days:any){return new Date(Date.now()+days*86400000).toISOString().slice(0,10)}
-function coName(id:any){var n=fullName(id);return n.indexOf('/')>=0?n.split('/')[1]:n}
-function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
+function coName(id:any){var cr=S.org&&S.org.companies&&S.org.companies[id];if(cr&&cr.custom&&cr.name)return cr.name;var n=fullName(id);return n.indexOf('/')>=0?n.split('/')[1]:n}
+function companyIds(){var o:any=[];S.agents.forEach(function(a:any){if(o.indexOf(a.projectId)<0)o.push(a.projectId)});var oc=(S.org&&S.org.companies)||{};Object.keys(oc).forEach(function(k:any){if(oc[k]&&oc[k].custom&&o.indexOf(k)<0)o.push(k)});return o.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))})}
 function siteOf(id:any){
   var m=safeUrl(((S.org&&S.org.companies&&S.org.companies[id])||{}).site);if(m)return m;
   var r=S.feed&&S.feed.repos&&S.feed.repos[String(id).replace('__','/')];return (r&&safeUrl(r.site))||'';
@@ -1409,21 +1428,28 @@ function orgAlt(list:any,ids:any,mode:string){
   }
   return h+'<p class="hint">Departments and technologies are worked out from each role and its tools. Set them yourself in Edit if the guess is wrong.</p>';
 }
+function newCompanyBlock(){
+  var f=S.nc;
+  return '<div class="cd" style="margin-bottom:16px"><b>Start a new company</b><p class="hint">This records the company in Agent Desk only. It does not create a GitHub repo. Add a Founder next, who can plan the functions; hiring requests then go through the HR desk.</p>'
+   +'<div class="two"><div class="fld"><label for="nc-n">Company name</label><input type="text" id="nc-n" data-ncf="name" value="'+esc(f.name)+'" placeholder="For example Acme Foods"></div><div class="fld"><label for="nc-s">Website (optional)</label><input type="text" id="nc-s" data-ncf="site" value="'+esc(f.site)+'" placeholder="https://"></div></div>'
+   +'<div class="two"><div class="fld"><label for="nc-p">What it will do (one line)</label><input type="text" id="nc-p" data-ncf="purpose" value="'+esc(f.purpose)+'"></div><div class="fld"><label for="nc-r">Rupees per capacity unit per month (optional)</label><input type="text" id="nc-r" data-ncf="rate" value="'+esc(f.rate)+'"></div></div>'
+   +'<div class="ctlbtns"><button class="btn small primary" data-act="nc-add">Create company</button></div></div>';
+}
 function companiesView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
-  if(!S.agents.length)return emptyHTML();
+  if(!S.agents.length&&!companyIds().length)return emptyHTML();
   var ids=companyIds(),st=companyStats(S.agents,ids),h='<div class="gc">';
   st.forEach(function(c:any){
     var pid=c.id,fr=S.feed&&S.feed.repos&&S.feed.repos[String(pid).replace('__','/')],pct=c.assigned?Math.round(100*c.done/c.assigned):null,T=buildTree(S.agents.filter(function(a:any){return a.projectId===pid})),head=T.roots[0];
     var man=((S.org&&S.org.companies&&S.org.companies[pid])||{}).site||'';
-    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small></div>'+siteBtn(pid)+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
+    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small>'+((orgDoc().companies[pid]||{}).purpose?'<small class="hint" style="display:block">'+esc(orgDoc().companies[pid].purpose)+'</small>':'')+'</div>'+(c.total?'':'<button class="btn small primary" data-act="co-first" data-id="'+esc(pid)+'">Add the first agent</button>')+siteBtn(pid)+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
      +'<div class="chips"><span class="chip">'+c.total+' people</span><span class="chip">'+c.active+' active</span>'+(c.resting?'<span class="chip">'+c.resting+' resting</span>':'')+(c.paused?'<span class="chip">'+c.paused+' paused</span>':'')+(c.loanedOut?'<span class="chip">'+c.loanedOut+' lent out</span>':'')+(c.loanedIn?'<span class="chip">'+c.loanedIn+' borrowed</span>':'')+(c.bench?'<span class="chip">'+c.bench+' on bench</span>':'')+(fr&&fr.openPRs?'<span class="chip">'+fr.openPRs+' open pull requests</span>':'')+'</div>'
      +(function(){var u=companyUsage(S.agents,pid),rt=(orgDoc().rates||{})[pid],rr=rupees(u.units,rt);return '<p class="hint">Using '+u.heads+' agents and '+u.units+' capacity units'+(rr?' (about ₹'+rr+' a month)':'')+'.</p>'})()
      +(pct!=null?'<div class="pbar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div><p class="hint">'+c.done+' of '+c.assigned+' tickets done ('+pct+'%)</p>':'<p class="hint">No tickets recorded.</p>')
      +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div>'
      +'<div class="fld"><label for="cr-'+esc(pid)+'">Rupees per capacity unit per month (optional)</label><input type="text" id="cr-'+esc(pid)+'" data-corate="'+esc(pid)+'" value="'+esc(((orgDoc().rates||{})[pid])||'')+'" placeholder="Leave empty to count units only"></div></div>';
   });
-  h+='</div>'+limitsBlock();
+  h+='</div>'+newCompanyBlock().replace('class="cd" style="margin-bottom:16px"','class="cd" style="margin-top:16px"')+limitsBlock();
   var bench=S.agents.filter(function(a:any){return a.bench}),loans=S.agents.filter(function(a:any){return activeLoan(a)});
   h+='<div class="block" style="margin-top:16px"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Agents any company may borrow. Put someone on the bench from their HR file.</p>'
    +(bench.length?'<ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span> <button class="btn small" data-act="mv-open" data-kind="lend" data-id="'+esc(a.id)+'">Lend…</button></li>'}).join('')+'</ul>':'<p class="hint">Nobody is on the bench.</p>')+'</div>';

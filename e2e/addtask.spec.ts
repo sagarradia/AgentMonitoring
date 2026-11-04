@@ -161,3 +161,26 @@ test('company names show as names, never [object Object]', async ({ page }) => {
   await page.click('.subtab[data-tab="co"]');
   await expect(page.locator('#lm-c')).not.toContainText('object');
 });
+
+test('start a new company, then add its first agent as a Leadership head', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="co"]');
+  await page.click('[data-act="nc-add"]');
+  await expect(page.locator('#toast')).toContainText('Give the company a name');
+  await page.fill('#nc-n', 'Acme Foods');
+  await page.fill('#nc-p', 'Healthy snacks');
+  await page.click('[data-act="nc-add"]');
+  await expect(page.locator('#toast')).toContainText('Company created');
+  const card = page.locator('.gc .cd', { hasText: 'Acme Foods' });
+  await expect(card).toContainText('Healthy snacks');
+  await card.locator('[data-act="co-first"]').click();
+  await expect(page.locator('#wx-dept')).toHaveValue('Leadership');
+  await expect(page.locator('#wx-desig')).toHaveValue('head');
+  await expect(page.locator('body')).not.toContainText('[object Object]');
+  // it can be picked on the HR desk too
+  await page.keyboard.press('Escape');
+});
