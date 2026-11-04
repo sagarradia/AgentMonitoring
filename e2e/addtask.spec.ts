@@ -77,6 +77,14 @@ test('org chart, companies with website field, lend an agent, review and change 
   await page.click('.tab[data-tab="g:people"]');
   await page.click('.subtab[data-tab="org"]');
   await expect(page.locator('.orgc')).toContainText('owner of every company');
+  await page.click('[data-act="orgby"][data-by="dept"]');
+  await expect(page.locator('.chips .chip').first()).toContainText('·');
+  await expect(page.locator('.cd').first()).toBeVisible();
+  await page.click('[data-act="orgby"][data-by="tech"]');
+  await expect(page.locator('.cd').first()).toBeVisible();
+  await page.click('[data-act="orgby"][data-by="flat"]');
+  await expect(page.locator('table.sheet th').nth(2)).toHaveText('Department');
+  await page.click('[data-act="orgby"][data-by="line"]');
   await page.click('.subtab[data-tab="co"]');
   await expect(page.locator('.cd').first()).toContainText('people');
   const site = page.locator('input[data-cosite]').first();

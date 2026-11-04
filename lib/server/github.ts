@@ -12,7 +12,7 @@ export class GhError extends Error {
 const REPO = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 export const isRepo = (s: string) => REPO.test(s) && !s.split('/').some((p) => /^\.+$/.test(p));
 
-async function gh(path: string, token: string, f: F, init: RequestInit = {}): Promise<Response> {
+export async function gh(path: string, token: string, f: F, init: RequestInit = {}): Promise<Response> {
   const r = await f('https://api.github.com' + path, {
     ...init, cache: 'no-store',
     headers: { authorization: 'Bearer ' + token, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'agent-desk', ...(init.body ? { 'content-type': 'application/json' } : {}) },

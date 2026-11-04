@@ -8,6 +8,7 @@ export const BUCKETS = {
   claude: { limit: 20, windowMs: 60_000 },
   repos: { limit: 10, windowMs: 60_000 },
   feed: { limit: 6, windowMs: 60_000 },
+  brief: { limit: 8, windowMs: 60_000 },
   control: { limit: 30, windowMs: 60_000 },
   login: { limit: 10, windowMs: 15 * 60_000 },
 } satisfies Record<string, Bucket>;

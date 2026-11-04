@@ -14,7 +14,7 @@ import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, 
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
-import { ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
+import { DEPARTMENTS, TECH, deptOf, groupBy, techOf, ONBOARDING, activeLoan, addReview, companyStats, diffChanges, endLoan, expireLoan, lend as lendIn, logChange, onboardingProgress, orgNeeds, reviewState, safeUrl, setBench, setOnboarding, transfer as transferIn } from '@/lib/org';
 import { MEMORY_OPTIONS, allHelpers, brainOf, defaultBrain, isLeader as isLeaderT, recommendModel, suggestSubs } from '@/lib/taskplan';
 import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefaults, extrasPrompt, applyExtras } from '@/lib/wizard-options';
 import { createDb, createSample, createDownloads, listRepos, loadConfig, type DB as DBT, type Sample, type Downloads } from '@/lib/client/runtime';
@@ -39,7 +39,7 @@ if (mounted) return;
 mounted = true;
 
 /* UI state, same fields as the original page. */
-var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
+var S: any = {repos:DEFAULT_REPOS,syncedAt:null,projects:{},agents:[],chats:{},loaded:false,scope:'all',tab:'overview',views:(function(){try{return JSON.parse(localStorage.getItem('ad-views')||'{}')||{}}catch(e){return {}}})(),ext:null,xe:null,xdel:null,orgBy:'line',bd:{},bdBusy:'',org:null,mv:null,lastSub:{},feed:null,control:null,feedBusy:false,pgConfirm:'',at:null,canFeed:false,xview:{},imp:null,liveOpen:{},ctl:null,capTab:'catalog',dirView:(function(){try{return localStorage.getItem('ad-dirview')||'people'}catch(e){return 'people'}})(),dirSel:'',dirTeam:'all',dirModel:'all',models:null,
   q:'',flt:'all',open:{},openAgent:null,confirmDelete:null,wizard:null,chat:null,syncing:false,sampleBlocked:false,banner:''};
 var DB: DBT | null = null, SAMPLE: Sample | null = null, MCP: boolean = false, DL: Downloads | null = null, lastSig = '';
 var app = document.getElementById('app') as HTMLElement, overlay = document.getElementById('overlay') as HTMLElement, toastEl = document.getElementById('toast') as HTMLElement;
@@ -109,10 +109,10 @@ function topHTML(repo){
   return h;
 }
 function briefHTML(id:any){
-  var b=(S.projects[id]||{}).brief||'';
+  var d=S.bd[id],b=d?d.text:((S.projects[id]||{}).brief||'');
   return '<section class="brief"><label for="brief-edit">Project brief</label><p class="hint">What this project is, who it is for and what matters this quarter. New agents are drafted from it.</p>'
    +'<textarea id="brief-edit" data-brief="'+esc(id)+'" placeholder="Example: A mobile-first savings app for gig workers in India. Launching the beta in November.">'+esc(b)+'</textarea>'
-   +'<div class="row"><button class="btn small" data-act="save-brief" data-id="'+esc(id)+'">Save brief</button></div></section>';
+   +'<div class="row"><button class="btn small primary" data-act="save-brief" data-id="'+esc(id)+'">Save brief</button>'+(S.canFeed?'<button class="btn small" data-act="brief-import" data-id="'+esc(id)+'"'+(S.bdBusy===id?' disabled':'')+'>'+(S.bdBusy===id?'Reading GitHub…':'Collect from GitHub')+'</button>':'')+'</div>'+(d&&d.srcs?'<p class="hint">Draft collected from '+d.srcs.map(function(x:any){return esc(x.path)}).join(', ')+'. It is not saved until you click Save brief. Trim anything you do not want agents to see.</p>':(S.canFeed?'<p class="hint">Collect from GitHub reads the repo\'s README, CLAUDE.md and docs and drafts a brief you can edit.</p>':''))+'</section>';
 }
 function statsHTML(list:any){
   var active=list.filter(function(a:any){return a.status==='active'}).length,open=0,tot=0,late=0,gd=0,gt=0,pcts=[] as any[];
@@ -463,6 +463,16 @@ function createAgent(){
   S.agents.unshift(a);syncAgent(ext().shared,a,teamIndex());persist('agents',a.id,a);
   S.wizard=null;S.scope=w.projectId;S.tab='agents';S.openAgent=a.id;render();toast('Agent created');
 }
+async function briefImport(id:any){
+  if(S.bdBusy)return;S.bdBusy=id;render();
+  try{
+    var r=await fetch('/api/brief',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({repo:String(id).replace('__','/')})});
+    var j=await r.json();
+    if(r.ok&&j.brief){var cur=((S.projects[id]||{}).brief||'').trim();S.bd[id]={text:(cur?cur+'\n\n---\n\n':'')+j.brief,srcs:j.sources};toast('Draft collected. Review it, then Save brief')}
+    else toast(j.error==='nothing_found'?'No README or docs found in that repo':j.error==='no_access'?'The GitHub token cannot read that repo':j.error==='server_not_connected'?'GitHub is not connected to this site':'Could not collect the brief');
+  }catch(e){toast('Could not reach GitHub')}
+  S.bdBusy='';render();
+}
 function saveBrief(id:any,text:any,quiet?:any){
   var p=S.projects[id]||{};p.brief=text.trim();S.projects[id]=p;persist('projects',id,p);
   if(!quiet){render();toast('Brief saved')}
@@ -592,6 +602,7 @@ document.addEventListener('click',function(e){
   else if(act==='task-open')taskOpen(id);
   else if(act==='mv-open'){var ma=S.agents.filter(function(x:any){return x.id===id})[0];if(ma){S.mv={id:id,kind:el.dataset.kind,to:'',until:isoPlus(14),reason:''};render()}}
   else if(act==='mv-close'){S.mv=null;render()}
+  else if(act==='orgby'){S.orgBy=el.dataset.by;render()}
   else if(act==='mv-ok')moveApply();
   else if(act==='loan-end'){mutate(id,function(a:any){endLoan(a,'returned early by you')});toast('Returned to the home company')}
   else if(act==='bench-toggle'){mutate(id,function(a:any){setBench(a,!a.bench)})}
@@ -670,7 +681,9 @@ document.addEventListener('click',function(e){
   else if(act==='wiz-back'){S.wizard.step=1;S.wizard.error='';render()}
   else if(act==='wiz-create')createAgent();
   else if(act==='sync')sync();
-  else if(act==='save-brief'){var t=document.getElementById('brief-edit');if(t)saveBrief(id,t.value)}
+  else if(act==='save-brief'){var t=document.getElementById('brief-edit');if(t){saveBrief(id,t.value);delete S.bd[id];render()}}
+  else if(act==='brief-import')briefImport(id);
+  else if(act==='co-brief'){S.scope=id;S.tab='co';render()}
   else if(act==='todo-cycle')mutate(id,function(a){var t=a.todos[i],o=['todo','doing','done'];t.status=o[(o.indexOf(t.status||'todo')+1)%3]});
   else if(act==='todo-add'){var ti=document.getElementById('todo-new');if(ti&&ti.value.trim()){var v=ti.value.trim();ti.value='';mutate(id,function(a){(a.todos=a.todos||[]).push({text:v,status:'todo',due:''})})}}
   else if(act==='goal-add'){var gi=document.getElementById('goal-new');if(gi&&gi.value.trim()){var gv=gi.value.trim();gi.value='';mutate(id,function(a){(a.goals=a.goals||[]).push({text:gv,horizon:'',done:false,due:''})})}}
@@ -701,6 +714,7 @@ document.addEventListener('input',function(e){
   else if(t.dataset.atq!==undefined&&S.at){S.at.q=t.value;render()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
+  else if(t.dataset.brief&&S.bd[t.dataset.brief]){S.bd[t.dataset.brief].text=t.value}
   else if(t.dataset.ctl==='note'&&S.ctl){S.ctl.note=t.value}
   else if(t.dataset.xf&&S.xe){S.xe.f[t.dataset.xf]=t.value}
   else if(t.dataset.wx&&S.wizard){S.wizard.extras[t.dataset.wx]=t.value}
@@ -754,6 +768,7 @@ document.addEventListener('change',function(e){
   else if(t.dataset.atf==='text'&&S.at){S.at.text=t.value;atDefaults(S.at);var pd=document.querySelector('details.plan');if(pd)pd.outerHTML=atPlanHTML()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.mvf&&S.mv){S.mv[t.dataset.mvf]=t.value}
+  else if(t.dataset.brief&&S.bd[t.dataset.brief]){S.bd[t.dataset.brief].text=t.value}
   else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
   else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
   else if(t.dataset.ctlBackup){var bv=t.value;mutate(t.dataset.ctlBackup,function(a){if(bv)a.backupId=bv;else delete a.backupId})}
@@ -1302,7 +1317,9 @@ function orgView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
   if(!list.length)return emptyHTML();
   var T=buildTree(list),ids:any=[];list.forEach(function(a:any){if(ids.indexOf(a.projectId)<0)ids.push(a.projectId)});ids.sort(function(a:any,b:any){return coName(a).localeCompare(coName(b))});
-  var h='<div class="orgc"><div class="org-top"><b>You</b><span class="hint">owner of every company below</span></div><ul class="org-root">';
+  var seg='<span class="seg" role="group" aria-label="Group by" style="margin-bottom:10px;display:inline-flex">'+[['line','Reporting line'],['dept','Departments'],['tech','Technologies'],['flat','Flat list']].map(function(o:any){return '<button class="btn small" data-act="orgby" data-by="'+o[0]+'" aria-pressed="'+(S.orgBy===o[0])+'">'+o[1]+'</button>'}).join('')+'</span>';
+  if(S.orgBy!=='line')return seg+orgAlt(list,ids,S.orgBy);
+  var h=seg+'<div class="orgc"><div class="org-top"><b>You</b><span class="hint">owner of every company below</span></div><ul class="org-root">';
   ids.forEach(function(pid:any){
     var roots=T.roots.filter(function(r:any){return r.projectId===pid}),bor=list.filter(function(a:any){var l=activeLoan(a);return l&&l.to===pid&&a.projectId!==pid});
     h+='<li><div class="org-co"><b>'+esc(coName(pid))+'</b> <span class="hint">'+list.filter(function(a:any){return a.projectId===pid}).length+' people</span> '+siteBtn(pid)+'</div>'
@@ -1314,6 +1331,25 @@ function orgView(list:any){
   if(bench.length)h+='<div class="block"><h2>Shared bench · '+bench.length+'</h2><p class="hint">Available to any company. Lend them from the Companies tab.</p><ul class="cl">'+bench.map(function(a:any){return '<li><button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> <span class="hint">'+esc(a.role||'')+' · home '+esc(coName(a.projectId))+'</span></li>'}).join('')+'</ul></div>';
   return h+'<p class="hint">This chart is built from each agent\'s Reports to line and company. It is a record on this page, not the real role files.</p>';
 }
+function agentChip(a:any,extra?:any){var ln=activeLoan(a);return '<button class="nm" data-act="open-agent" data-id="'+esc(a.id)+'">'+esc(a.name)+'</button> '+stDot(a)+(ln?' <span class="pill mute">on loan</span>':'')+(extra?' <span class="hint">'+extra+'</span>':'')}
+function orgAlt(list:any,ids:any,mode:string){
+  var h='';
+  if(mode==='dept'){
+    var all=groupBy(list,function(a:any){return [deptOf(a)]});
+    h+='<div class="chips" style="margin-bottom:10px">'+all.map(function(g:any){var cs:any=[];g[1].forEach(function(a:any){if(cs.indexOf(a.projectId)<0)cs.push(a.projectId)});return '<span class="chip">'+esc(g[0])+' · '+g[1].length+(cs.length>1?' in '+cs.length+' companies':'')+'</span>'}).join('')+'</div>';
+    ids.forEach(function(pid:any){
+      var home=list.filter(function(a:any){return a.projectId===pid});
+      h+='<div class="block" style="margin-bottom:14px"><h2>'+esc(coName(pid))+' <span class="hint">'+home.length+' people</span> '+siteBtn(pid)+'</h2><div class="gc">'
+       +groupBy(home,function(a:any){return [deptOf(a)]}).map(function(g:any){return '<div class="cd"><div class="cd-h"><b>'+esc(g[0])+'</b><span class="hint"> '+g[1].length+'</span></div><ul class="cl" style="max-height:none">'+g[1].map(function(a:any){return '<li>'+agentChip(a,esc(a.role||''))+'</li>'}).join('')+'</ul></div>'}).join('')+'</div></div>';
+    });
+  }else if(mode==='tech'){
+    var tg=groupBy(list,function(a:any){var t=techOf(a);return t.length?t:['Not stated']});
+    h+='<div class="gc">'+tg.map(function(g:any){return '<div class="cd"><div class="cd-h"><b>'+esc(g[0])+'</b><span class="hint"> '+g[1].length+'</span></div><ul class="cl" style="max-height:none">'+g[1].map(function(a:any){return '<li>'+agentChip(a,esc(coName(a.projectId)))+'</li>'}).join('')+'</ul></div>'}).join('')+'</div>';
+  }else{
+    h+='<div class="sheetwrap"><table class="sheet"><thead><tr><th>Name</th><th>Company</th><th>Department</th><th>Reports to</th><th>Status</th><th>Technologies</th></tr></thead><tbody>'+list.slice().sort(function(a:any,b:any){return coName(a.projectId).localeCompare(coName(b.projectId))||deptOf(a).localeCompare(deptOf(b))||String(a.name).localeCompare(String(b.name))}).map(function(a:any){return '<tr><td>'+agentChip(a)+'</td><td>'+esc(coName(a.projectId))+'</td><td>'+esc(deptOf(a))+'</td><td>'+esc(a.reportsTo||'')+'</td><td>'+esc(statusLabel(effState(a)))+'</td><td>'+esc(techOf(a).join(', '))+'</td></tr>'}).join('')+'</tbody></table></div>';
+  }
+  return h+'<p class="hint">Departments and technologies are worked out from each role and its tools. Set them yourself in Edit if the guess is wrong.</p>';
+}
 function companiesView(list:any){
   if(!S.loaded)return '<p class="hint">Loading…</p>';
   if(!S.agents.length)return emptyHTML();
@@ -1321,7 +1357,7 @@ function companiesView(list:any){
   st.forEach(function(c:any){
     var pid=c.id,fr=S.feed&&S.feed.repos&&S.feed.repos[String(pid).replace('__','/')],pct=c.assigned?Math.round(100*c.done/c.assigned):null,T=buildTree(S.agents.filter(function(a:any){return a.projectId===pid})),head=T.roots[0];
     var man=((S.org&&S.org.companies&&S.org.companies[pid])||{}).site||'';
-    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small></div>'+siteBtn(pid)+'</div>'
+    h+='<div class="cd"><div class="cd-h"><div class="grow"><b>'+esc(coName(pid))+'</b><small class="hint" style="display:block">'+(head?'Led by '+esc(head.name):'No head yet')+'</small></div>'+siteBtn(pid)+'<button class="btn small" data-act="co-brief" data-id="'+esc(pid)+'">Brief</button></div>'
      +'<div class="chips"><span class="chip">'+c.total+' people</span><span class="chip">'+c.active+' active</span>'+(c.resting?'<span class="chip">'+c.resting+' resting</span>':'')+(c.paused?'<span class="chip">'+c.paused+' paused</span>':'')+(c.loanedOut?'<span class="chip">'+c.loanedOut+' lent out</span>':'')+(c.loanedIn?'<span class="chip">'+c.loanedIn+' borrowed</span>':'')+(c.bench?'<span class="chip">'+c.bench+' on bench</span>':'')+(fr&&fr.openPRs?'<span class="chip">'+fr.openPRs+' open pull requests</span>':'')+'</div>'
      +(pct!=null?'<div class="pbar" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+pct+'%"></i></div><p class="hint">'+c.done+' of '+c.assigned+' tickets done ('+pct+'%)</p>':'<p class="hint">No tickets recorded.</p>')
      +'<div class="fld"><label for="cs-'+esc(pid)+'">Website address (overrides what GitHub reports)</label><input type="text" id="cs-'+esc(pid)+'" data-cosite="'+esc(pid)+'" value="'+esc(man)+'" placeholder="https://your-site.vercel.app"></div></div>';
@@ -1355,7 +1391,7 @@ function hrBlock(a:any){
   var backup=a.backupId?(S.agents.filter(function(x:any){return x.id===a.backupId})[0]||{}).name:'';
   var h='<section class="pc-s hr"><h4>HR file</h4><div class="pc-facts">'
    +'<div><span>Company</span><b>'+esc(coName(a.projectId))+'</b></div>'
-   +'<div><span>Manager</span><b>'+esc(a.reportsTo||'None named')+'</b></div>'
+   +'<div><span>Department</span><b>'+esc(deptOf(a))+'</b></div><div><span>Manager</span><b>'+esc(a.reportsTo||'None named')+'</b></div>'
    +'<div><span>Backup</span><b>'+esc(backup||'None named')+'</b></div>'
    +'<div><span>Working for</span><b>'+(ln?esc(coName(ln.to))+' until '+esc(ln.until):'Home company')+'</b></div>'
    +'<div><span>Onboarding</span><b>'+ob.done+' of '+ob.total+'</b></div><div><span>Review</span>'+chip+'</div></div>';
@@ -1894,7 +1930,7 @@ var EF=[['name','Name','text'],['role','Title line','text'],['level','Level','le
 function editFields(a){
   var f={},o=modelOf(a);
   EF.forEach(function(x){var k=x[0],v=a[k];f[k]=Array.isArray(v)?(k==='tools'?v.join(', '):v.join('\n')):(v==null?'':String(v))});
-  f.model=o.nowId;f.modelPlanned=o.propId;f.brain=JSON.parse(JSON.stringify(brainOf(a)));return f;
+  f.dept=a.dept||'';f.techTxt=(Array.isArray(a.tech)?a.tech:[]).join(', ');f.model=o.nowId;f.modelPlanned=o.propId;f.brain=JSON.parse(JSON.stringify(brainOf(a)));return f;
 }
 function brainBox(b:any,pre:string){
   return '<div class="fld"><label><input type="checkbox" data-'+pre+'="own"'+(b.own?' checked':'')+'> Gets its own brain <span class="hint">its own memory, not shared with other agents. Leads such as the CTO and Chief of Staff have it by default.</span></label></div><div class="fld"><label>Memory it keeps</label><div class="checks">'+MEMORY_OPTIONS.map(function(o:any,i:number){var id=pre+'-m-'+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-'+pre+'m="1" value="'+esc(o)+'"'+(b.memory.indexOf(o)>=0?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div></div><div class="fld"><label for="'+pre+'-note">Memory note (optional)</label><input type="text" id="'+pre+'-note" data-'+pre+'="note" value="'+esc(b.note||'')+'" placeholder="For example Keep decisions for 90 days"></div>';
@@ -1910,6 +1946,8 @@ function editHTML(){
     else c='<input type="text" id="'+id+'" data-ef="'+k+'" value="'+esc(v)+'">';
     h+='<div class="fld"><label for="'+id+'">'+esc(x[1])+'</label>'+c+'</div>';
   });
+  h+='<div class="fld"><label for="ef-dept">Department</label><select id="ef-dept" data-ef="dept"><option value="">Worked out from the role: '+esc(deptOf(Object.assign({},a,{dept:''})))+'</option>'+DEPARTMENTS.map(function(d:any){return '<option'+(e.f.dept===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')+'</select></div>'
+   +'<div class="fld"><label for="ef-tech">Technologies (comma separated)</label><input type="text" id="ef-tech" data-ef="techTxt" value="'+esc(e.f.techTxt||'')+'" placeholder="Worked out from tools and duties when empty. For example '+esc(TECH.slice(0,3).join(', '))+'"></div>';
   h+='<div class="fld"><label for="ef-model">Model now</label><select id="ef-model" data-ef="model">'+modelOpts(e.f.model,'Not set')+'</select></div>'
    +'<div class="fld"><label for="ef-modelPlanned">Model planned</label><select id="ef-modelPlanned" data-ef="modelPlanned">'+modelOpts(e.f.modelPlanned,'Not set')+'</select><span class="hint">Models that are not connected cannot be chosen. Connect them under Connections.</span></div>'
    +'<h3 style="margin-top:10px">Brain and memory</h3>'+brainBox(e.f.brain,'eb')
@@ -1926,6 +1964,8 @@ function saveEdit(){
     ['responsibilities','may','mustNot','requirements'].forEach(function(k){a[k]=lines(f[k])});
     a.tools=String(f.tools||'').split(',').map(function(x){return x.trim()}).filter(Boolean);
     a.model=f.model||'';a.modelPlanned=f.modelPlanned||'';
+    if(f.dept)a.dept=f.dept;else delete a.dept;
+    var tl=String(f.techTxt||'').split(',').map(function(x:any){return x.trim()}).filter(Boolean);if(tl.length)a.tech=tl;else delete a.tech;
     if(f.brain)a.brain={own:!!f.brain.own,memory:f.brain.memory.slice(),note:String(f.brain.note||'').trim()};
     diffChanges(before,a).forEach(function(tx:any){logChange(a,tx)});
   });
