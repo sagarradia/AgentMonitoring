@@ -166,3 +166,10 @@ The server ends a rest when its time is up (and clears that agent's `agent-pause
 
 ## Hiring limits
 Companies tab > Hiring limits. Set a most-agents and/or most-capacity limit at four levels: whole company, department, role (a word in the role) or an individual (a cost ceiling per agent). Capacity units are a rough measure of plan use per agent (Haiku 1, Sonnet 2, Opus 4, +1 for its own brain; paused agents count 0). Optional rupee rate per company turns units into rupees. A hire, a loan or a model/brain upgrade that breaks a limit is stopped with the reason; repeating the same action approves going over. Limits are estimates, not bills, and are checked in this app only.
+
+## HR desk and roles
+
+- **Department and Designation** in Build an agent (template and Claude-drafted paths) pre-load duties, skills, plugins, memory, tools and guardrails from `lib/roles.ts`. Everything stays editable.
+- **HR desk** (People tab) is the default HR function: anyone can raise a requisition, the desk prepares the hire and checks limits, only the owner approves. Records live in `meta/reqs`. Agents cannot raise requisitions themselves yet.
+- **Start a new company** (People, Companies) records a company in the app only; no GitHub repo is created. "Add the first agent" opens the build form as a Leadership head.
+- **Hiring requests from chat:** in an agent's chat, "Ask what help it needs", then "Capture commitments". Any hire the agent asked for appears as a proposal; applying it sends a requisition to the HR desk. The owner still approves.

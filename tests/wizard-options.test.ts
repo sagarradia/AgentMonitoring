@@ -40,3 +40,24 @@ describe('wizard extras', () => {
     expect(spec.reportsTo).toBe('Founder');
   });
 });
+
+describe('department and designation', () => {
+  it('pre-loads duties, skills, tools, guardrails and the title for the chosen role, in both draft paths', () => {
+    let x = defaultExtras('draft the privacy policy');
+    expect(x.dept).toBe('');
+    x = refreshDefaults({ ...x, dept: 'Security', designation: 'head' }, 'review things', ['Model routing', 'Memory manager']);
+    expect(x.tools).toContain('GitHub'); expect(x.skills).toContain('Threat modelling'); expect(x.plugins).toEqual(['Memory manager']);
+    const spec = applyExtras({ role: 'x', responsibilities: ['Existing duty'] }, x, 'review things') as Record<string, any>;
+    expect(spec.role).toBe('Head of Security');
+    expect(spec.responsibilities).toContain('Existing duty'); expect(spec.responsibilities.length).toBeGreaterThan(3);
+    expect(spec.mustNot).toContain('Share any secret, token or key');
+    expect(extrasPrompt(x)).toMatch(/Department: Security\. Designation: Head of Security/);
+  });
+  it('leaves behaviour alone when no department or designation was chosen, and respects ticks', () => {
+    const x = defaultExtras('write blog posts');
+    const spec = applyExtras({ role: 'Writer', responsibilities: ['A'] }, x, 'write blog posts') as Record<string, any>;
+    expect(spec.role).toBe('Writer'); expect(spec.responsibilities).toEqual(['A']);
+    const t = refreshDefaults({ ...x, skills: ['Mine'], touched: { ...x.touched, skills: true } }, 'x');
+    expect(t.skills).toEqual(['Mine']);
+  });
+});

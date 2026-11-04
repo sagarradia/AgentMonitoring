@@ -127,3 +127,60 @@ test('hiring limits: add one, see it, and a loan over the limit is stopped until
   await page.click('[data-act="lm-add"]');
   await expect(page.locator('#toast')).toContainText('Set at least one limit');
 });
+
+test('HR desk: raise a requisition, approve, and the build form opens pre-filled', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="hr"]');
+  await page.click('[data-act="rq-add"]');
+  await expect(page.locator('#toast')).toContainText(/department|reason|Choose/i);
+  await page.selectOption('#rq-d', 'Marketing');
+  await page.selectOption('#rq-g', 'agent');
+  await page.fill('#rq-r', 'Launch content is behind schedule');
+  await page.click('[data-act="rq-add"]');
+  await expect(page.locator('#toast')).toContainText('Requisition raised');
+  await expect(page.locator('.cd', { hasText: 'Launch content is behind' })).toContainText('Skills');
+  await page.locator('[data-act="rq-approve"]').first().click();
+  await expect(page.locator('.modal')).toBeVisible();
+  await expect(page.locator('#wx-dept')).toHaveValue('Marketing');
+});
+
+test('company names show as names, never [object Object]', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  for (const t of ['co', 'hr', 'org']) {
+    await page.click('.subtab[data-tab="' + t + '"]');
+    await expect(page.locator('body')).not.toContainText('[object Object]');
+  }
+  await page.click('.subtab[data-tab="co"]');
+  await expect(page.locator('#lm-c')).not.toContainText('object');
+});
+
+test('start a new company, then add its first agent as a Leadership head', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="co"]');
+  await page.click('[data-act="nc-add"]');
+  await expect(page.locator('#toast')).toContainText('Give the company a name');
+  await page.fill('#nc-n', 'Acme Foods');
+  await page.fill('#nc-p', 'Healthy snacks');
+  await page.click('[data-act="nc-add"]');
+  await expect(page.locator('#toast')).toContainText('Company created');
+  const card = page.locator('.gc .cd', { hasText: 'Acme Foods' });
+  await expect(card).toContainText('Healthy snacks');
+  await card.locator('[data-act="co-first"]').click();
+  await expect(page.locator('#wx-dept')).toHaveValue('Leadership');
+  await expect(page.locator('#wx-desig')).toHaveValue('head');
+  await expect(page.locator('body')).not.toContainText('[object Object]');
+  // it can be picked on the HR desk too
+  await page.keyboard.press('Escape');
+});
