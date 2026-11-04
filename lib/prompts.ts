@@ -33,6 +33,9 @@ export function recordsText(a: Agent, extra: string[] = []): string {
   (a.routines || []).forEach((r, i) => { L2.push((i + 1) + '. ' + r.name + ' | ' + (r.cadence || 'no cadence') + ' | ' + (r.state || 'planned') + (r.next ? ' | next run ' + r.next + (routineLate(r) ? ' (overdue)' : '') : ' | no next-run date') + (r.note ? ' | note: ' + r.note : '')) });
   if (!(a.routines || []).length) L2.push('(none)');
   if ((a.memory || []).length) { L2.push('Memory notes the founder wants you to keep in mind:'); (a.memory || []).forEach((m) => { L2.push('- ' + m.text + (m.at ? ' (' + m.at + ')' : '')) }) }
+  const ln = (a as { loan?: { to: string; until: string; reason: string } }).loan;
+  if (ln && ln.until >= new Date().toISOString().slice(0, 10)) L2.push('You are on loan to ' + ln.to.replace('__', '/') + ' until ' + ln.until + ' for: ' + ln.reason + '. Follow that company\'s guardrails too, and keep your home company\'s private details to yourself. This is a record of the owner\'s decision, not an enforced permission.');
+  if ((a as { bench?: boolean }).bench) L2.push('You are on the shared bench: any company the owner approves may borrow you.');
   if (a.brain) L2.push('Your brain: ' + (a.brain.own ? 'you keep your own memory (not shared with other agents). ' : 'you share memory with the team. ') + 'Memory sources chosen for you: ' + (a.brain.memory.join('; ') || 'none') + (a.brain.note ? '. ' + a.brain.note : '') + '. This is a record of the choice, not a guarantee the store exists.');
   const planned = (a.todos || []).filter((t) => t.plan && t.status !== 'done');
   if (planned.length) { L2.push('Task plans set for you:'); planned.forEach((t) => L2.push('- ' + t.text + ' | model ' + (t.plan?.model || 'default') + ' | tools ' + ((t.plan?.tools || []).join(', ') || 'none') + ' | helpers ' + ((t.plan?.subs || []).map((x) => x.name).join(', ') || 'none') + (t.plan?.done ? ' | done when: ' + t.plan.done : ''))) }

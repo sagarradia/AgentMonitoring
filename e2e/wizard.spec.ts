@@ -27,7 +27,7 @@ test('wizard pre-selects options from the task and saves the choices on the new 
   expect(tools).not.toContain('Slack');
   await expect(page.locator('#wf-mustNot')).toHaveValue(/Merging or deploying code without the owner's approval/);
 
-  const saved = page.waitForResponse((r) => r.url().includes('/api/db/agents/') && r.request().method() === 'PUT');
+  const saved = page.waitForResponse((r) => r.url().includes('/api/db/agents/') && r.request().method() === 'PUT' && (r.request().postData() || '').includes('"autonomy"'));
   await page.click('[data-act="wiz-create"]');
   const id = decodeURIComponent((await saved).url().split('/').pop()!);
   const doc = (await (await page.request.get(`/api/db/agents/${id}`)).json()).data;

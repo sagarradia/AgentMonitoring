@@ -4,7 +4,7 @@
 
 type Bucket = { limit: number; windowMs: number };
 export const BUCKETS = {
-  db: { limit: 240, windowMs: 60_000 },
+  db: { limit: 600, windowMs: 60_000 },
   claude: { limit: 20, windowMs: 60_000 },
   repos: { limit: 10, windowMs: 60_000 },
   feed: { limit: 6, windowMs: 60_000 },

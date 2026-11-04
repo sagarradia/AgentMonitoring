@@ -5,6 +5,7 @@ import { applyIssues, issueOf, type Issue } from '../feed';
 import type { Agent } from '../types';
 
 type F = typeof fetch;
+import { safeUrl } from '../org';
 export class GhError extends Error {
   constructor(public status: number, public code: string) { super(code) }
 }
@@ -41,8 +42,21 @@ export async function fetchIssues(repo: string, token: string, f: F = fetch): Pr
   return out;
 }
 
-export interface RepoFeed { ok: boolean; error?: string; issues?: number; matched?: number; updated?: number; openPRs?: number; unmatched?: number; needsHuman?: number[] }
+export interface RepoFeed { site?: string; ok: boolean; error?: string; issues?: number; matched?: number; updated?: number; openPRs?: number; unmatched?: number; needsHuman?: number[] }
 export interface FeedDoc { fetchedAt: number; repos: Record<string, RepoFeed> }
+
+/** The live website of a repo: the homepage set on GitHub, else the address of its latest deployment (Vercel reports there). */
+export async function discoverSite(repo: string, token: string, f: F = fetch): Promise<string> {
+  try {
+    const r = await (await gh('/repos/' + repo, token, f)).json() as { homepage?: string };
+    const home = safeUrl(r.homepage);
+    if (home) return home;
+    const dep = await (await gh('/repos/' + repo + '/deployments?per_page=1', token, f)).json() as Array<{ id?: number }>;
+    if (!Array.isArray(dep) || !dep[0]?.id) return '';
+    const st = await (await gh('/repos/' + repo + '/deployments/' + dep[0].id + '/statuses?per_page=1', token, f)).json() as Array<{ environment_url?: string; target_url?: string }>;
+    return (Array.isArray(st) && st[0] && (safeUrl(st[0].environment_url) || safeUrl(st[0].target_url))) || '';
+  } catch { return '' }
+}
 
 const repoOf = (projectId: string) => projectId.replace('__', '/');
 
@@ -63,7 +77,7 @@ export async function syncFeed(store: Store, token: string, f: F = fetch, now = 
       const issues = await fetchIssues(repo, token, f);
       const res = applyIssues(list.map((x) => x.a), issues, today);
       for (const [id, a] of Object.entries(res.changed)) { const { id: _id, ...data } = a; void _id; await store.put('agents', id, data as unknown as Record<string, unknown>) }
-      feed.repos[repo] = { ok: true, issues: issues.filter((i) => !i.pr).length, matched: res.matched, updated: res.updated, openPRs: res.openPRs, unmatched: res.unmatchedIssues, needsHuman: res.needsHuman };
+      feed.repos[repo] = { site: await discoverSite(repo, token, f), ok: true, issues: issues.filter((i) => !i.pr).length, matched: res.matched, updated: res.updated, openPRs: res.openPRs, unmatched: res.unmatchedIssues, needsHuman: res.needsHuman };
     } catch (e) {
       feed.repos[repo] = { ok: false, error: e instanceof GhError ? e.code : 'upstream_error' };
     }

@@ -115,7 +115,7 @@ describe('auth and limits', () => {
   });
   it('rate limits per IP', async () => {
     let last = 0;
-    for (let i = 0; i < 241; i++) last = (await Coll.GET(await authed('/api/db/agents', { ip: '10.9.9.9' }), ctx({ collection: 'agents' }))).status;
+    for (let i = 0; i < 601; i++) last = (await Coll.GET(await authed('/api/db/agents', { ip: '10.9.9.9' }), ctx({ collection: 'agents' }))).status;
     expect(last).toBe(429);
     expect((await Coll.GET(await authed('/api/db/agents', { ip: '10.9.9.10' }), ctx({ collection: 'agents' }))).status).toBe(200);
   });

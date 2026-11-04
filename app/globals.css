@@ -393,3 +393,11 @@ details.plan summary{cursor:pointer;font-weight:600}
 @media(max-width:560px){.sub-row{grid-template-columns:1fr}}
 
 .ap h5{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:10px 0 4px}
+
+.orgc{margin-bottom:14px}.org-top{display:flex;gap:10px;align-items:baseline;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px}
+.orgc ul{list-style:none;margin:6px 0 0 14px;padding-left:14px;border-left:2px solid var(--line)}
+.orgc li{padding:4px 0;position:relative}.orgc li>.nm{font-weight:600}
+.org-co{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}.pill.warn{background:#fff3cd;color:#7a5b00}.pill.bad{background:#fde2e2;color:#9b1c1c}
+pre.jd{white-space:pre-wrap;font:12.5px/1.5 var(--mono);background:var(--surface2);padding:10px;border-radius:8px;max-height:260px;overflow:auto}
+.hr details{margin-top:8px}.hr summary{cursor:pointer;font-weight:600}

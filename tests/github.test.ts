@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GhError, controlCfg, fetchIssues, getControl, getPaused, isAgentKey, setAgentPaused, setPaused, syncFeed } from '@/lib/server/github';
+import { GhError, controlCfg, fetchIssues, discoverSite, getControl, getPaused, isAgentKey, setAgentPaused, setPaused, syncFeed } from '@/lib/server/github';
 import { memoryStore, setStore } from '@/lib/server/store';
 import * as Cron from '@/app/api/feed/cron/route';
 import * as Control from '@/app/api/control/route';
@@ -104,5 +104,17 @@ describe('routes', () => {
     const r = await Control.GET(await authed('/api/control'));
     expect(await r.json()).toMatchObject({ configured: false, issue: 96 });
     expect((await Control.POST(await authed('/api/control', { method: 'POST', body: JSON.stringify({ paused: true }) }))).status).toBe(503);
+  });
+});
+
+describe('finding the live website of a repo', () => {
+  it('prefers the GitHub homepage, then the latest deployment address, and ignores unsafe links', async () => {
+    const home = fake((c) => ({ body: c.url === '/repos/o/r' ? { homepage: 'https://site.example.app' } : [] }));
+    expect(await discoverSite('o/r', 't', home.f)).toBe('https://site.example.app/');
+    const dep = fake((c) => c.url === '/repos/o/r' ? { body: { homepage: '' } } : c.url.includes('/statuses') ? { body: [{ environment_url: 'https://preview.example.app' }] } : { body: [{ id: 7 }] });
+    expect(await discoverSite('o/r', 't', dep.f)).toBe('https://preview.example.app/');
+    const bad = fake((c) => ({ body: c.url === '/repos/o/r' ? { homepage: 'javascript:alert(1)' } : [] }));
+    expect(await discoverSite('o/r', 't', bad.f)).toBe('');
+    expect(await discoverSite('o/r', 't', fake(() => ({ status: 403 })).f)).toBe('');
   });
 });

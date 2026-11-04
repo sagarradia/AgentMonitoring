@@ -155,7 +155,7 @@ Guardrails, skills and plugins, and the new Shared items (todo, KPI, goal, memor
 - **Add a task** also records tools, skills, plugins, memory sources, a model and helper agents. Defaults come from the task and the first agent. The model suggestion is the cheapest connected model that is accurate enough (`lib/taskplan.ts`; the cost and accuracy ratings are rough estimates, not prices). Leads (Head level, CTO, Chief of Staff) always get the most accurate model and their own brain.
 - **Brain and memory** is in every agent's Edit panel, profile card and the Build-an-agent form.
 - Pause, Rest and Revoke on a person also set the label `agent-paused:<name>` on the Agent control issue. An agent only obeys it once its role file says to look for that label (a founder-only change in FamilyVault).
-- The page refreshes every 5 seconds while visible, and straight away when you return to the tab.
+- The page refreshes every 10 seconds while visible, and straight away when you return to the tab.
 
 ## Rests end by themselves
 The server ends a rest when its time is up (and clears that agent's `agent-paused:` label). It runs from `/api/feed/cron`, which is called every 15 minutes by `.github/workflows/tick.yml` (needs repository secrets `APP_URL` and `CRON_SECRET`, and the same `CRON_SECRET` in Vercel), once a day by Vercel Cron, and whenever the feed or control card is refreshed.
