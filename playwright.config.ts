@@ -8,6 +8,7 @@ const PORT = 3210;
    seeded by the app itself on first request). */
 const pg = process.env.E2E_DATABASE_URL;
 const env = {
+  LOGIN_RATE_MAX: '200',
   ...(pg ? { DATABASE_URL: pg, DB_DRIVER: '' } : { DB_DRIVER: 'file', DB_FILE: '.data/e2e.json' }),
   APP_PASSWORD: 'e2e-password-not-real',
   // Placeholders so the page shows Talk, Sync and Generate as it would when configured.

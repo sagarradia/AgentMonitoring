@@ -10,7 +10,7 @@ export const BUCKETS = {
   feed: { limit: 6, windowMs: 60_000 },
   brief: { limit: 8, windowMs: 60_000 },
   control: { limit: 30, windowMs: 60_000 },
-  login: { limit: 10, windowMs: 15 * 60_000 },
+  login: { limit: Number(process.env.LOGIN_RATE_MAX) > 0 ? Number(process.env.LOGIN_RATE_MAX) : 10, windowMs: 15 * 60_000 },   // tests that sign in many times raise it
 } satisfies Record<string, Bucket>;
 export type BucketName = keyof typeof BUCKETS;
 
