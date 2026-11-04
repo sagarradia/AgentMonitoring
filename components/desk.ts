@@ -1477,11 +1477,16 @@ var KINDS=[['skill','Skill'],['plugin','Plugin'],['mcp','Connector (MCP)'],['too
 var RTYPES=[['never','Never'],['ask','Ask first'],['always','Always']];
 function kindLabel(k){for(var i=0;i<KINDS.length;i++)if(KINDS[i][0]===k)return KINDS[i][1];return 'Skill'}
 function ruleLabel(k){for(var i=0;i<RTYPES.length;i++)if(RTYPES[i][0]===k)return RTYPES[i][1];return 'Never'}
+var STARTER=[
+ {id:'sp1',name:'Model routing',what:'Picks the cheapest model that is accurate enough for each task.'},
+ {id:'sp2',name:'Context compaction',what:'Keeps long runs small by summarising what is no longer needed.'},
+ {id:'sp3',name:'Memory manager',what:'Saves, recalls and tidies the notes an agent keeps.'}];
+function starterItems(){return STARTER.map(function(x:any){return {id:x.id,name:x.name,kind:'plugin',runtime:'any',status:'wanted',what:x.what,source:'Starter pack: a placeholder for the real plugin. Replace it by adding the real one from its downloaded file.',scope:{mode:'all'},starter:true}})}
 function defaultExt(){
   var fv='';S.repos.forEach(function(r){if(r.full_name.split('/')[1]==='familyvault')fv=rid(r)});
   var sc=fv?{mode:'project',projects:[fv]}:{mode:'all'};
   function g(id,t,ty){return {id:id,text:t,type:ty,scope:sc,src:'FamilyVault CLAUDE.md'}}
-  return {items:[],rules:[
+  return {items:starterItems(),starter:true,rules:[
    g('g1','Keys live only in packages/crypto. No other code generates, stores, logs or sends keys.','never'),
    g('g2','Never log content: no document text, names, numbers, balances, passwords, tokens or message bodies.','never'),
    g('g3','Synthetic data only. No real user data, statements, IDs or messages in the repo, tests or issues.','never'),
@@ -1674,15 +1679,17 @@ function sharedLines(a:any){
   return o;
 }
 function appliesBlock(a:any){
-  var E=ext(),tm=teamIndex(),id=esc(a.id),rows='',av:any[]=[],first=String(a.name||'this person').split(/[ (]/)[0];
+  var E=ext(),tm=teamIndex(),id=esc(a.id),rows='',rowsD='',av:any[]=[],first=String(a.name||'this person').split(/[ (]/)[0];
   function row(kind:string,x:any,label:string,tag:string){
     if(!applies(x.scope,a,tm)){if(x.status!=='off')av.push([kind+':'+x.id,tag+': '+label]);return}
-    rows+='<li><span class="pill mute">'+esc(tag)+'</span><span class="grow">'+esc(label)+'</span><button class="linkbtn" data-act="x-reduce" data-kind="'+kind+'" data-id="'+esc(x.id)+'" data-agent="'+id+'" aria-label="Remove '+esc(label)+' for '+esc(first)+'">Remove for '+esc(first)+'</button></li>';
+    var isDef=scopeNorm(x.scope).all;
+    var li='<li><span class="pill mute">'+esc(tag)+'</span><span class="grow">'+esc(label)+'</span><button class="linkbtn" data-act="x-reduce" data-kind="'+kind+'" data-id="'+esc(x.id)+'" data-agent="'+id+'" aria-label="Remove '+esc(label)+' for '+esc(first)+'">Remove for '+esc(first)+'</button></li>';
+    if(isDef)rowsD+=li;else rows+=li;
   }
   E.rules.forEach(function(r:any){row('rule',r,r.text,ruleLabel(r.type))});
   E.items.forEach(function(x:any){row('item',x,x.name,kindLabel(x.kind))});
   E.shared.forEach(function(x:any){row('shared',x,sharedLabel(x),(SHARED_KINDS.filter(function(k:any){return k[0]===x.kind})[0]||[0,'Shared'])[1])});
-  return '<!--ctl--><section class="pc-s ap"><h4>What applies to '+esc(first)+'</h4>'+(rows?'<ul class="ap-l">'+rows+'</ul>':'<p class="hint">Nothing has been assigned to this person.</p>')
+  return '<!--ctl--><section class="pc-s ap"><h4>What applies to '+esc(first)+'</h4>'+(rowsD?'<h5>Loaded by default <span class="hint">everyone in the organisation</span></h5><ul class="ap-l">'+rowsD+'</ul>':'')+'<h5>Added for this project, team or person</h5>'+(rows?'<ul class="ap-l">'+rows+'</ul>':'<p class="hint">Nothing extra has been added.</p>')
    +(av.length?'<div class="fld"><label for="gv-'+id+'">Give '+esc(first)+' something</label><select id="gv-'+id+'" data-give="'+id+'"><option value="">Choose a guardrail, skill, plugin or shared item</option>'+av.map(function(o:any){return '<option value="'+esc(o[0])+'">'+esc(o[1].length>90?o[1].slice(0,90)+'…':o[1])+'</option>'}).join('')+'</select></div>':'')
    +'<p class="hint">Use Change who gets it on the Capabilities page to widen or narrow by project, team or organisation.</p></section><!--/ctl-->';
 }
@@ -1866,7 +1873,7 @@ render();
     if(S.chat&&(S.chat.busy||S.chat.extracting))return;
     S.chats=m;if(S.chat)render();
   },function(){});
-  DB.doc('meta/ext').onSnapshot(function(d:any){S.ext=d.exists?clone(d.data()):null;render()},function(){});
+  DB.doc('meta/ext').onSnapshot(function(d:any){S.ext=d.exists?clone(d.data()):null;if(S.ext&&!S.ext.starter){S.ext.items=(S.ext.items||[]).concat(starterItems());S.ext.starter=true;saveExt(S.ext)}render()},function(){});
   DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;if(S.models&&S.models.list&&!S.models.haikuAdded&&!S.models.list.some(function(m:any){return m.id==='haiku55'})){S.models.list.push(clone(DEFAULT_MODELS.filter(function(m:any){return m.id==='haiku55'})[0]));S.models.haikuAdded=true;persistModels()}render()},function(){});
   DB.doc('meta/feed').onSnapshot(function(d:any){S.feed=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/report').onSnapshot(function(d:any){S.report=d.exists?clone(d.data()):null;render()},function(){});

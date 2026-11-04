@@ -391,3 +391,5 @@ details.plan summary{cursor:pointer;font-weight:600}
 .sub-row{display:grid;grid-template-columns:1fr minmax(150px,200px);gap:4px 10px;border-top:1px solid var(--line);padding-top:6px;align-items:center}
 .sub-row small.hint{grid-column:1/-1}
 @media(max-width:560px){.sub-row{grid-template-columns:1fr}}
+
+.ap h5{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:10px 0 4px}
