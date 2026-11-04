@@ -33,6 +33,9 @@ export function recordsText(a: Agent, extra: string[] = []): string {
   (a.routines || []).forEach((r, i) => { L2.push((i + 1) + '. ' + r.name + ' | ' + (r.cadence || 'no cadence') + ' | ' + (r.state || 'planned') + (r.next ? ' | next run ' + r.next + (routineLate(r) ? ' (overdue)' : '') : ' | no next-run date') + (r.note ? ' | note: ' + r.note : '')) });
   if (!(a.routines || []).length) L2.push('(none)');
   if ((a.memory || []).length) { L2.push('Memory notes the founder wants you to keep in mind:'); (a.memory || []).forEach((m) => { L2.push('- ' + m.text + (m.at ? ' (' + m.at + ')' : '')) }) }
+  if (a.brain) L2.push('Your brain: ' + (a.brain.own ? 'you keep your own memory (not shared with other agents). ' : 'you share memory with the team. ') + 'Memory sources chosen for you: ' + (a.brain.memory.join('; ') || 'none') + (a.brain.note ? '. ' + a.brain.note : '') + '. This is a record of the choice, not a guarantee the store exists.');
+  const planned = (a.todos || []).filter((t) => t.plan && t.status !== 'done');
+  if (planned.length) { L2.push('Task plans set for you:'); planned.forEach((t) => L2.push('- ' + t.text + ' | model ' + (t.plan?.model || 'default') + ' | tools ' + ((t.plan?.tools || []).join(', ') || 'none') + ' | helpers ' + ((t.plan?.subs || []).map((x) => x.name).join(', ') || 'none') + (t.plan?.done ? ' | done when: ' + t.plan.done : ''))) }
   if ((a.docs || []).length) { L2.push('Docs you work from (you only know titles and paths, not contents):'); (a.docs || []).forEach((x) => { L2.push('- ' + x.title + (x.path ? ' [' + x.path + ']' : '') + (x.note ? ': ' + x.note : '')) }) }
   if ((a.skills || []).length) { L2.push('Skills you have:'); (a.skills || []).forEach((x) => { L2.push('- ' + x.name + (x.note ? ': ' + x.note : '')) }) }
   if (extra.length) L2.push(...extra);

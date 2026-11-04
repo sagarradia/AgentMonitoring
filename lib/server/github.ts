@@ -94,3 +94,26 @@ export async function setPaused(cfg: ControlCfg, token: string, paused: boolean,
   }
   return getPaused(cfg, token, f);
 }
+
+/* Per-agent pause: one label per agent on the same Agent control issue, named `agent-paused:<key>`.
+   This puts each decision where the agents already look. Whether a given agent obeys it depends on its role file. */
+export const AGENT_PREFIX = 'agent-paused:';
+export const isAgentKey = (k: unknown): k is string => typeof k === 'string' && /^[a-z0-9][a-z0-9_-]{0,59}$/i.test(k);
+export async function getControl(cfg: ControlCfg, token: string, f: F = fetch): Promise<{ paused: boolean; agents: string[] }> {
+  if (!isRepo(cfg.repo)) throw new GhError(400, 'bad_repo');
+  const r = await gh('/repos/' + cfg.repo + '/issues/' + cfg.issue, token, f);
+  const j = (await r.json()) as { labels?: Array<{ name?: string } | string> };
+  const names = (j.labels || []).map((l) => (typeof l === 'string' ? l : l.name) || '');
+  return { paused: names.includes(cfg.label), agents: names.filter((n) => n.startsWith(AGENT_PREFIX)).map((n) => n.slice(AGENT_PREFIX.length)) };
+}
+export async function setAgentPaused(cfg: ControlCfg, token: string, key: string, paused: boolean, f: F = fetch) {
+  if (!isRepo(cfg.repo)) throw new GhError(400, 'bad_repo');
+  if (!isAgentKey(key)) throw new GhError(400, 'bad_agent');
+  const base = '/repos/' + cfg.repo + '/issues/' + cfg.issue + '/labels';
+  if (paused) await gh(base, token, f, { method: 'POST', body: JSON.stringify({ labels: [AGENT_PREFIX + key] }) });
+  else {
+    try { await gh(base + '/' + encodeURIComponent(AGENT_PREFIX + key), token, f, { method: 'DELETE' }) }
+    catch (e) { if (!(e instanceof GhError) || e.code !== 'no_access') throw e }
+  }
+  return getControl(cfg, token, f);
+}

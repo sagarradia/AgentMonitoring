@@ -7,7 +7,7 @@
    No request bodies or chat text are logged here. */
 import type { Repo, Turn } from '../types';
 
-export const POLL_MS = 15_000;
+export const POLL_MS = 5_000;
 
 export interface CodedError { code: string; text?: string }
 function coded(code: string, text?: string): CodedError { return text == null ? { code } : { code, text } }
@@ -57,6 +57,7 @@ export function createDb(pollMs = POLL_MS): DB {
      undo the user's edit on screen. Such poll results are dropped; the next poll picks things up. */
   let pending = 0, writes = 0;
   const pollers = new Set<() => void>();
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (!document.hidden) pollers.forEach((t) => t()) });
 
   /* The version of each document this page last saw. A PUT sends it, and the server refuses the write with 409
      when someone else saved the document since, so two devices cannot silently overwrite each other. */
@@ -78,6 +79,7 @@ export function createDb(pollMs = POLL_MS): DB {
   function poll<T>(load: () => Promise<T>, deliver: (v: T) => void, err?: (e: unknown) => void): Unsub {
     let stopped = false, last = '', first = true, busy = false;
     const tick = async () => {
+      if (typeof document !== 'undefined' && document.hidden && !first) return;
       if (stopped || busy) return;
       if (!first && typeof document !== 'undefined' && document.hidden) return;
       busy = true;
