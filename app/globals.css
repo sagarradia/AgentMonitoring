@@ -373,3 +373,13 @@ table.sheet td.stick{z-index:2}
 .pkgc{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;background:var(--surface);font-weight:400}
 .pkgc-b{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pkg-body{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:12px/1.5 var(--mono)}
+
+/* grouped tabs, progress header */
+.subtabs{display:flex;gap:4px;flex-wrap:wrap;margin:-4px 0 10px;padding-top:6px}
+.subtab{background:none;border:1px solid transparent;border-radius:99px;padding:5px 12px;color:var(--muted);font:inherit;font-size:13.5px;cursor:pointer}
+.subtab:hover{background:var(--surface2)}
+.subtab[aria-selected="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.subtab em{font-style:normal;font:500 11px var(--mono);margin-left:6px;opacity:.75}
+.pg-head{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:14px}
+.pg-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.pg-card h3{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}

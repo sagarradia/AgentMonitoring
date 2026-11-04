@@ -140,3 +140,23 @@ describe('store failures', () => {
     expect(logged).not.toContain('secret-body-marker');
   });
 });
+
+describe('x-base-version', () => {
+  const putV = async (v: string | null, body: unknown) => Doc.PUT(await authed('/api/db/agents/fv_test', { method: 'PUT', body: JSON.stringify(body), headers: { 'content-type': 'application/json', ...(v ? { 'x-base-version': v } : {}) } }), ctx({ collection: 'agents', id: 'fv_test' }));
+  it('accepts a write made on the version it saw and refuses a stale one', async () => {
+    const first = await (await putV(null, agent)).json();
+    await new Promise((r) => setTimeout(r, 5));
+    const ok = await putV(first.updated_at, { ...agent, name: 'Second' });
+    expect(ok.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 5));
+    const stale = await putV(first.updated_at, { ...agent, name: 'Third' });
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).error).toBe('conflict');
+    const doc = await (await Doc.GET(await authed('/api/db/agents/fv_test'), ctx({ collection: 'agents', id: 'fv_test' }))).json();
+    expect(doc.data.name).toBe('Second');
+  });
+  it('still accepts a write with no version (older pages, scripts) and a first write', async () => {
+    expect((await putV('2020-01-01T00:00:00.000Z', agent)).status).toBe(200);
+    expect((await putV(null, agent)).status).toBe(200);
+  });
+});

@@ -10,7 +10,7 @@ test('pause, rest with a timer, backup cover, and live progress bars', async ({ 
   await expect(page).toHaveURL(/\/$/);
 
   // Live tab: one overall bar, then a bar per team and per ticket.
-  await page.click('.tab[data-tab="live"]');
+  await page.click('.tab[data-tab="g:progress"]');
   await expect(page.locator('.lv-all .pbar')).toHaveCount(1);
   await expect(page.locator('.lv-team').first()).toBeVisible();
 

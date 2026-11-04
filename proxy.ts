@@ -3,7 +3,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { COOKIE, verifySession } from './lib/server/auth';
 
-const OPEN = new Set(['/login', '/api/login', '/robots.txt']);
+const OPEN = new Set(['/login', '/api/login', '/robots.txt', '/api/feed/cron']);
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
