@@ -127,3 +127,23 @@ test('hiring limits: add one, see it, and a loan over the limit is stopped until
   await page.click('[data-act="lm-add"]');
   await expect(page.locator('#toast')).toContainText('Set at least one limit');
 });
+
+test('HR desk: raise a requisition, approve, and the build form opens pre-filled', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click('.subtab[data-tab="hr"]');
+  await page.click('[data-act="rq-add"]');
+  await expect(page.locator('#toast')).toContainText(/department|reason|Choose/i);
+  await page.selectOption('#rq-d', 'Marketing');
+  await page.selectOption('#rq-g', 'agent');
+  await page.fill('#rq-r', 'Launch content is behind schedule');
+  await page.click('[data-act="rq-add"]');
+  await expect(page.locator('#toast')).toContainText('Requisition raised');
+  await expect(page.locator('.cd', { hasText: 'Launch content is behind' })).toContainText('Skills');
+  await page.locator('[data-act="rq-approve"]').first().click();
+  await expect(page.locator('.modal')).toBeVisible();
+  await expect(page.locator('#wx-dept')).toHaveValue('Marketing');
+});
