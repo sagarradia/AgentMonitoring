@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { GhError, controlCfg, fetchIssues, getPaused, setPaused, syncFeed } from '@/lib/server/github';
+import { GhError, controlCfg, fetchIssues, getControl, getPaused, isAgentKey, setAgentPaused, setPaused, syncFeed } from '@/lib/server/github';
 import { memoryStore, setStore } from '@/lib/server/store';
 import * as Cron from '@/app/api/feed/cron/route';
 import * as Control from '@/app/api/control/route';
@@ -70,6 +70,20 @@ describe('the pause switch', () => {
     expect(calls.find((c) => c.method === 'POST')).toMatchObject({ url: '/repos/Skybirds-Empyrean-Avenue/familyvault/issues/96/labels', body: JSON.stringify({ labels: ['agents-paused'] }) });
     expect(await setPaused(cfg, 't', false, f)).toBe(false);
     expect(await setPaused(cfg, 't', false, f)).toBe(false);   // already gone: not an error
+  });
+  it('pauses one agent with its own label, leaving the all-agents switch alone', async () => {
+    let labels: string[] = [];
+    const { f, calls } = fake((c) => {
+      if (c.method === 'POST') { labels.push(JSON.parse(c.body as string).labels[0]); return { body: [] } }
+      if (c.method === 'DELETE') { labels = labels.filter((l) => c.url.indexOf(encodeURIComponent(l)) < 0); return { body: [] } }
+      return { body: { labels: labels.map((name) => ({ name })) } };
+    });
+    expect(await setAgentPaused(cfg, 't', 'cto', true, f)).toEqual({ paused: false, agents: ['cto'] });
+    expect(calls.find((c) => c.method === 'POST')?.body).toBe(JSON.stringify({ labels: ['agent-paused:cto'] }));
+    expect(await setAgentPaused(cfg, 't', 'cto', false, f)).toEqual({ paused: false, agents: [] });
+    expect((await getControl(cfg, 't', f)).agents).toEqual([]);
+    await expect(setAgentPaused(cfg, 't', '../x', true, f)).rejects.toBeInstanceOf(GhError);
+    expect(isAgentKey('chief-of-staff')).toBe(true); expect(isAgentKey('a b')).toBe(false);
   });
   it('says the token needs write access when GitHub refuses', async () => {
     await expect(setPaused(cfg, 't', true, fake(() => ({ status: 403 })).f)).rejects.toBeInstanceOf(GhError);

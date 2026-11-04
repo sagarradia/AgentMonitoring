@@ -149,3 +149,10 @@ Guardrails, skills and plugins, and the new Shared items (todo, KPI, goal, memor
 - With `GITHUB_TOKEN` set, the site reads GitHub issues itself (on open, every 5 minutes, and daily by cron) and updates ticket status. Optional `CRON_SECRET` protects the daily cron.
 - **Pause all agents** adds or removes the `agents-paused` label on the Agent control issue. This needs the token to have Issues read and write. Per-person Pause/Rest/Revoke only record a decision.
 - Saves check the last-seen version; if another device changed the same item first, you get a message and the latest copy.
+
+## Task plans, helper agents and brains
+
+- **Add a task** also records tools, skills, plugins, memory sources, a model and helper agents. Defaults come from the task and the first agent. The model suggestion is the cheapest connected model that is accurate enough (`lib/taskplan.ts`; the cost and accuracy ratings are rough estimates, not prices). Leads (Head level, CTO, Chief of Staff) always get the most accurate model and their own brain.
+- **Brain and memory** is in every agent's Edit panel, profile card and the Build-an-agent form.
+- Pause, Rest and Revoke on a person also set the label `agent-paused:<name>` on the Agent control issue. An agent only obeys it once its role file says to look for that label (a founder-only change in FamilyVault).
+- The page refreshes every 5 seconds while visible, and straight away when you return to the tab.

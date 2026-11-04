@@ -26,3 +26,45 @@ test('grouped tabs and adding a task to two agents', async ({ page }) => {
     return JSON.stringify(await r.json()).includes('Synthetic check task');
   }).toBe(true);
 });
+
+test('task plan: defaults, helpers with models, own brain for leads, saved on the task', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:work"]');
+  await page.getByRole('button', { name: 'Add a task' }).click();
+  await page.fill('#at-q', 'CTO');
+  await page.click('[data-act="task-all"]');
+  await page.fill('#at-text', 'Review key handling and encryption in the build');
+  await page.locator('#at-done').click();
+  // the strongest model is recommended for risky work, and helpers each carry a model and a reason
+  await expect(page.locator('#at-model')).toContainText('Recommended');
+  await expect(page.locator('.plan')).toContainText('Opus');
+  await expect(page.locator('.sub-row').first()).toBeVisible();
+  await expect(page.locator('input[data-atc="tools"]:checked').first()).toBeVisible();
+  await expect(page.locator('input[data-atc="memory"]:checked').first()).toBeVisible();
+  await page.click('[data-act="task-add"]');
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect.poll(async () => {
+    const all = (await (await page.request.get('/api/db/agents')).json()) as any;
+    const docs: any[] = all.docs;
+    return docs.some((d) => JSON.stringify(d).includes('Review key handling') && JSON.stringify(d).includes('"modelWhy"'));
+  }).toBe(true);
+});
+
+test('every agent has brain and memory options in the editor', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL(/\/$/);
+  await page.click('.tab[data-tab="g:people"]');
+  await page.locator('[data-act="open-agent"]').first().click();
+  await page.locator('.panel [data-act="edit-open"]').first().click();
+  await expect(page.locator('.panel')).toContainText('Brain and memory');
+  await expect(page.locator('input[data-eb="own"]')).toBeVisible();
+  await page.locator('input[data-ebm]').first().uncheck();
+  await page.locator('input[data-eb="own"]').check();
+  await page.click('[data-act="edit-save"]');
+  await expect(page.locator('#toast')).toContainText('Saved');
+});

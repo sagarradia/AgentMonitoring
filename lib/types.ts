@@ -10,7 +10,8 @@ export interface Goal { text: string; horizon?: string; done?: boolean; due?: st
 export interface Kra { area: string; outcome: string; weight: number }
 export interface Kpi { name: string; target: number | null; unit?: string; cadence?: string; dir?: 'up' | 'down'; current?: number | null; due?: string; note?: string }
 export type TodoStatus = 'todo' | 'doing' | 'done';
-export interface Todo { text: string; status?: TodoStatus; due?: string; note?: string; pct?: number; state?: string; updatedAt?: number }
+export interface TaskPlan { priority?: string; done?: string; tools?: string[]; skills?: string[]; plugins?: string[]; memory?: string[]; model?: string; modelWhy?: string; subs?: Array<{ name: string; agentId?: string; model: string; why: string }> }
+export interface Todo { plan?: TaskPlan; addedBy?: string; text: string; status?: TodoStatus; due?: string; note?: string; pct?: number; state?: string; updatedAt?: number }
 export interface Routine { name: string; cadence?: string; state?: 'planned' | 'on' | 'paused'; next?: string; note?: string }
 export interface MemoryNote { text: string; at?: string; src?: string }
 export interface DocRef { title: string; path?: string; note?: string }
@@ -40,6 +41,7 @@ export interface Agent {
   todos?: Todo[];
   routines?: Routine[];
   memory?: MemoryNote[];
+  brain?: { own: boolean; memory: string[]; note?: string };
   docs?: DocRef[];
   skills?: Skill[];
   source?: string;

@@ -14,6 +14,7 @@ import { effState, isAvailable, restExpired, restLeft, restUntilFor, logStatus, 
 import { templateSpec as templateSpecIn, normalizeSpec, toFields, fromFields, buildPrompt as buildPromptIn, jdText as jdTextIn } from '@/lib/templates';
 import { HOLD, TIMELINES, ROUTINES, recordsText, chatTurns as chatTurnsIn, capturePrompt } from '@/lib/prompts';
 import { buildCsv, csvFilename } from '@/lib/csv';
+import { MEMORY_OPTIONS, allHelpers, brainOf, defaultBrain, isLeader as isLeaderT, recommendModel, suggestSubs } from '@/lib/taskplan';
 import { TOOL_OPTIONS, APPROVAL_OPTIONS, CADENCES, defaultExtras, refreshDefaults, extrasPrompt, applyExtras } from '@/lib/wizard-options';
 import { createDb, createSample, createDownloads, listRepos, loadConfig, type DB as DBT, type Sample, type Downloads } from '@/lib/client/runtime';
 import type { Repo } from '@/lib/types';
@@ -340,12 +341,15 @@ function chatHTML(){
 /* Step 1 "More details": defaults are pre-selected from the task; untick what does not apply. */
 function extrasHTML(x:any){
   var box=function(kind:string,opts:readonly string[],sel:string[]){return '<div class="checks">'+opts.map(function(o,i){var id='wx-'+kind+'-'+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-wcheck="'+kind+'" value="'+esc(o)+'"'+(sel.indexOf(o)>=0?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div>'};
+  x.__brain=S.wizard.brain||defaultBrain({role:S.wizard.task});
   var h='<section class="more" aria-label="More details"><h3>More details · defaults chosen for you</h3>';
   h+='<p class="hint">Pre-selected from the task. Keep them as they are or untick what does not apply. These are recorded on the role; this app does not connect to the services.</p>';
   h+='<div class="fld"><label>Tools and access</label>'+box('tools',TOOL_OPTIONS,x.tools)+'<input type="text" id="wx-other" data-wx="otherTools" value="'+esc(x.otherTools)+'" placeholder="Other tools, comma separated" aria-label="Other tools"></div>';
   h+='<div class="fld"><label>Needs your approval before</label>'+box('approvals',APPROVAL_OPTIONS,x.approvals)+'</div>';
   h+='<div class="two"><div class="fld"><label for="wx-cadence">Status updates</label><select id="wx-cadence" data-wx="cadence" style="width:100%">'+CADENCES.map(function(c){return '<option value="'+esc(c)+'"'+(x.cadence===c?' selected':'')+'>'+esc(c)+'</option>'}).join('')+'</select></div>'
    +'<div class="fld"><label for="wx-reports">Reports to</label><input type="text" id="wx-reports" data-wx="reportsTo" value="'+esc(x.reportsTo)+'" placeholder="Leave blank to use the draft"></div></div>';
+  var wb=x.__brain;
+  h+='<div class="fld"><label>Brain and memory</label></div>'+brainBox(wb,'wb');
   h+='<div class="fld"><label for="wx-notes">Anything else it should know</label><textarea id="wx-notes" data-wx="notes" rows="2" placeholder="Optional. Saved to the agent\'s memory.">'+esc(x.notes)+'</textarea></div>';
   return h+'</section>';
 }
@@ -411,7 +415,7 @@ function render(){
 /* ---------- wizard actions ---------- */
 function openWizard(projectId:any){
   var pid=projectId||(S.scope!=='all'?S.scope:rid(S.repos[0]));
-  S.wizard={step:1,projectId:pid,brief:(S.projects[pid]&&S.projects[pid].brief)||'',task:'',autonomy:'review',busy:false,error:'',fields:null,source:'template',ctl:null,extras:defaultExtras('')};
+  S.wizard={brain:null,step:1,projectId:pid,brief:(S.projects[pid]&&S.projects[pid].brief)||'',task:'',autonomy:'review',busy:false,error:'',fields:null,source:'template',ctl:null,extras:defaultExtras('')};
   S.chat=null;S.openAgent=null;render();
   var t=byId('w-task');if(t)t.focus();
 }
@@ -451,6 +455,7 @@ function createAgent(){
   var a={id:newId(),projectId:w.projectId,name:s.name,role:s.role,reportsTo:s.reportsTo,status:'active',task:w.task.trim(),autonomy:w.autonomy,
     purpose:s.purpose,responsibilities:s.responsibilities,requirements:s.requirements,tools:s.tools,mustNot:s.mustNot,goals:s.goals,kras:s.kras,kpis:s.kpis,todos:s.todos,
     routines:[{name:'Status update to '+(s.reportsTo||'the owner'),cadence:w.extras.cadence,state:'planned',next:'',note:'Set when the agent was built'}],
+    brain:w.brain||defaultBrain({role:s.role,name:s.name}),
     memory:w.extras.notes.trim()?[{text:w.extras.notes.trim(),at:today(),src:'you'}]:[],
     source:w.source,createdAt:Date.now()};
   S.agents.unshift(a);syncAgent(ext().shared,a,teamIndex());persist('agents',a.id,a);
@@ -585,8 +590,8 @@ document.addEventListener('click',function(e){
   else if(act==='task-open')taskOpen(id);
   else if(act==='task-close'){S.at=null;render()}
   else if(act==='task-add')taskAdd();
-  else if(act==='task-all'){var tq=String(S.at&&S.at.q||'').toLowerCase();S.agents.forEach(function(a:any){if(!tq||(a.name+' '+(teamIndex()[a.id]||'')).toLowerCase().indexOf(tq)>=0)if(S.at.ids.indexOf(a.id)<0)S.at.ids.push(a.id)});render()}
-  else if(act==='task-none'){S.at.ids=[];render()}
+  else if(act==='task-all'){var tq=String(S.at&&S.at.q||'').toLowerCase();S.agents.forEach(function(a:any){if(!tq||(a.name+' '+(teamIndex()[a.id]||'')).toLowerCase().indexOf(tq)>=0)if(S.at.ids.indexOf(a.id)<0)S.at.ids.push(a.id)});atDefaults(S.at);render()}
+  else if(act==='task-none'){S.at.ids=[];atDefaults(S.at);render()}
   else if(act==='feed-refresh')refreshFeed(false);
   else if(act==='pg-ask'){S.pgConfirm=el.dataset.what;render()}
   else if(act==='pg-cancel'){S.pgConfirm='';render()}
@@ -727,7 +732,15 @@ document.addEventListener('change',function(e){
     };
     rd.readAsText(fl);
   }
-  else if(t.dataset.atid&&S.at){S.at.ids=tgl(S.at.ids,t.dataset.atid,t.checked);render()}
+  else if(t.dataset.ebm!==undefined&&S.edit){S.edit.f.brain.memory=tgl(S.edit.f.brain.memory,t.value,t.checked)}
+  else if(t.dataset.eb&&S.edit){S.edit.f.brain[t.dataset.eb]=t.dataset.eb==='own'?t.checked:t.value}
+  else if(t.dataset.wbm!==undefined&&S.wizard){S.wizard.brain=S.wizard.brain||defaultBrain({role:S.wizard.task});S.wizard.brain.memory=tgl(S.wizard.brain.memory,t.value,t.checked)}
+  else if(t.dataset.wb&&S.wizard){S.wizard.brain=S.wizard.brain||defaultBrain({role:S.wizard.task});S.wizard.brain[t.dataset.wb]=t.dataset.wb==='own'?t.checked:t.value}
+  else if(t.dataset.atid&&S.at){S.at.ids=tgl(S.at.ids,t.dataset.atid,t.checked);atDefaults(S.at);render()}
+  else if(t.dataset.atc&&S.at){var ak=t.dataset.atc;S.at.t[ak]=true;S.at[ak]=tgl(S.at[ak],t.value,t.checked)}
+  else if(t.dataset.asub!==undefined&&S.at){S.at.t.subs=true;S.at.subs[Number(t.dataset.asub)].on=t.checked}
+  else if(t.dataset.asubm!==undefined&&S.at){S.at.t.subs=true;S.at.subs[Number(t.dataset.asubm)].model=t.value}
+  else if(t.dataset.atf==='text'&&S.at){S.at.text=t.value;atDefaults(S.at);var pd=document.querySelector('details.plan');if(pd)pd.outerHTML=atPlanHTML()}
   else if(t.dataset.atf&&S.at){S.at[t.dataset.atf]=t.value}
   else if(t.dataset.ctl==='hours'&&S.ctl){S.ctl.hours=Number(t.value);S.ctl.custom='';render()}
   else if(t.dataset.ctlBk&&S.ctl){S.ctl.bk[t.dataset.ctlBk]=t.value;render()}
@@ -815,6 +828,7 @@ function scoreSheet(list){
 var DEFAULT_MODELS=[
  {id:'opus55',name:'Claude Opus 5.5',vendor:'Anthropic',connected:true,note:'Base model for every agent (CLAUDE.md).'},
  {id:'sonnet55',name:'Claude Sonnet 5.5',vendor:'Anthropic',connected:true,note:'Planned for 12 lighter roles in PR #139.'},
+ {id:'haiku55',name:'Claude Haiku 5.5',vendor:'Anthropic',connected:true,note:'Lightest and cheapest Claude model. For simple, well-defined jobs.'},
  {id:'codex',name:'Codex',vendor:'OpenAI',connected:false,note:'CLAUDE.md names it as a secondary tool. Connection not verified.'},
  {id:'hermes',name:'Hermes',vendor:'',connected:false,note:'CLAUDE.md names it as a secondary tool. Connection not verified.'},
  {id:'deepseek',name:'DeepSeek',vendor:'DeepSeek',connected:false,note:''},
@@ -912,6 +926,8 @@ function personCard(a,team){
   var ap=appliedTo(a);
   h+=pcSec('Guardrails and capabilities that apply',(ap.rules.length||ap.items.length)?'<ul class="cl" style="max-height:none">'+ap.rules.map(function(r){return '<li><b>'+ruleLabel(r.type)+':</b> '+esc(r.text)+'</li>'}).join('')+ap.items.map(function(x){return '<li><b>'+kindLabel(x.kind)+':</b> '+esc(x.name)+' <span class="hint">('+esc(x.status)+')</span></li>'}).join('')+'</ul>':'<span class="hint">Nothing set. Add some on the Capabilities page.</span>');
   h+='<div class="pc-cols">'+pcSec('Skills',ulN((a.skills||[]).map(function(z){return z.name+(z.note?': '+z.note:'')})))+pcSec('Routines',ulN((a.routines||[]).map(function(z){return z.name+' · '+(z.cadence||'no cadence')+' · '+(z.state||'planned')})))+'</div>';
+  var bb=brainOf(a);
+  h+=pcSec('Brain',(bb.own?'<p><b>Own brain</b> <span class="hint">memory kept for this agent alone</span></p>':'<p><b>Shares team memory</b></p>')+'<div class="chips">'+bb.memory.map(function(x:any){return '<span class="chip">'+esc(x)+'</span>'}).join('')+'</div>'+(bb.note?'<p class="hint">'+esc(bb.note)+'</p>':''));
   h+='<div class="pc-cols">'+pcSec('Memory',ulN((a.memory||[]).map(function(z){return z.text})))+pcSec('Docs',ulN((a.docs||[]).map(function(z){return z.title+(z.path?' ['+z.path+']':'')})))+'</div>';
   return h;
 }
@@ -991,6 +1007,17 @@ function coverBanner(){
   });
   return out?'<!--ctl-->'+out+'<!--/ctl-->':'';
 }
+function pauseWanted(a:any){return ['paused','resting','revoked','withdrawn'].indexOf(a.status)>=0}
+function inControl(a:any){var c=S.control;return !!(S.canFeed&&c&&c.repo&&!c.error&&String(a.projectId||'').toLowerCase()===String(c.repo).replace('/','__').toLowerCase())}
+async function syncPause(a:any){
+  if(!inControl(a))return;
+  var key=String(a.id).replace(/^fv_/,''),want=pauseWanted(a);
+  try{
+    var r=await fetch('/api/control',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({paused:want,agent:key})});
+    var j=await r.json();
+    if(j&&Array.isArray(j.agents)){S.control=j;render()}else toast('Saved here, but GitHub was not updated'+(j&&j.error==='needs_write'?' (the token needs Issues write)':''));
+  }catch(e){toast('Saved here, but GitHub was not updated')}
+}
 function setStates(ids,status,o){
   o=o||{};var now=Date.now();
   ids.forEach(function(id){
@@ -1001,7 +1028,7 @@ function setStates(ids,status,o){
     if(!a.statusNote)delete a.statusNote;
     logStatus(a,status,a.statusNote||'',now);
     if(o.bk&&o.bk[id]!==undefined){if(o.bk[id])a.backupId=o.bk[id];else delete a.backupId}
-    persist('agents',a.id,a);
+    persist('agents',a.id,a);syncPause(a);
   });
 }
 function openCtl(ids,status){
@@ -1094,24 +1121,63 @@ function liveView(list){
   return h;
 }
 /* ---------- add a task ---------- */
+function atFirst(){var c=S.at;return c&&c.ids.length?S.agents.filter(function(a:any){return a.id===c.ids[0]})[0]:null}
+function atModels(){return modelList().map(function(m:any){return {id:m.id,name:m.name,connected:m.connected}})}
+function atDefaults(c:any){
+  var a=atFirst(),E=ext(),ap=a?appliedTo(a):{rules:[],items:[]};
+  if(!c.t.tools)c.tools=(a&&(a.tools||[]).length?a.tools.slice():defaultExtras(c.text).tools.slice());
+  if(!c.t.skills)c.skills=uniq((a?(a.skills||[]).map(function(x:any){return x.name}):[]).concat(ap.items.filter(function(x:any){return x.kind==='skill'}).map(function(x:any){return x.name})));
+  if(!c.t.plugins)c.plugins=uniq(ap.items.filter(function(x:any){return x.kind==='plugin'||x.kind==='mcp'}).map(function(x:any){return x.name}));
+  if(!c.t.memory)c.memory=(a?brainOf(a):defaultBrain({role:c.text})).memory.slice();
+  if(!c.t.subs){
+    var sg=suggestSubs(c.text,atModels(),S.agents,a||undefined);
+    c.subs=sg.map(function(x:any){return Object.assign({on:true},x)});
+    allHelpers(atModels()).forEach(function(h:any){if(!c.subs.some(function(x:any){return x.key===h.key}))c.subs.push(Object.assign({on:false},h))});
+  }
+}
+function uniq(l:any){var o:any=[];l.forEach(function(x:any){if(x&&o.indexOf(x)<0)o.push(x)});return o}
 function taskOpen(id:any){
   S.chat&&S.chat.ctl&&S.chat.ctl.abort();S.chat=null;S.edit=null;S.xe=null;S.imp=null;S.modelsOpen=false;
-  S.at={ids:id?[id]:[],text:'',due:'',note:'',state:'todo',pct:'',q:''};render();
+  S.at={ids:id?[id]:[],text:'',due:'',note:'',state:'todo',priority:'Normal',done:'',model:'auto',q:'',t:{},tools:[],skills:[],plugins:[],memory:[],subs:[]};
+  atDefaults(S.at);render();
   var t=byId('at-text');if(t)t.focus();
+}
+function atChecks(kind:string,opts:any,sel:any){
+  var all=uniq(opts.concat(sel));
+  return '<div class="checks">'+all.map(function(o:any,i:number){var id='at-'+kind+'-'+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-atc="'+kind+'" value="'+esc(o)+'"'+(sel.indexOf(o)>=0?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div>';
+}
+function atPlanHTML(){
+  var c=S.at,a=atFirst(),E=ext(),L=modelList(),lead=a&&isLeaderT(a),rec=recommendModel(c.text,atModels(),!!lead);
+  var h='<details class="plan" open><summary>How it should be done <span class="hint">defaults are chosen from the task and the first agent; untick what does not apply</span></summary>';
+  h+='<div class="fld"><label>Tools and access</label>'+atChecks('tools',TOOL_OPTIONS.slice(),c.tools)+'</div>';
+  var skillOpts=E.items.filter(function(x:any){return x.kind==='skill'}).map(function(x:any){return x.name}),plugOpts=E.items.filter(function(x:any){return x.kind==='plugin'||x.kind==='mcp'}).map(function(x:any){return x.name});
+  h+='<div class="fld"><label>Skills</label>'+(skillOpts.length||c.skills.length?atChecks('skills',skillOpts,c.skills):'<span class="hint">No skills registered yet. Add some under Capabilities.</span>')+'</div>';
+  h+='<div class="fld"><label>Plugins and connectors</label>'+(plugOpts.length||c.plugins.length?atChecks('plugins',plugOpts,c.plugins):'<span class="hint">No plugins registered yet. Add some under Capabilities.</span>')+'</div>';
+  h+='<div class="fld"><label>Memory it may use'+(a?' <span class="hint">'+(brainOf(a).own?'this agent has its own brain':'this agent shares the team memory')+'</span>':'')+'</label>'+atChecks('memory',MEMORY_OPTIONS.slice(),c.memory)+'</div>';
+  h+='<div class="fld"><label for="at-model">Model</label><select id="at-model" data-atf="model"><option value="auto"'+(c.model==='auto'?' selected':'')+'>Recommended'+(rec.id?': '+esc(mn(rec.id)):'')+'</option>'+L.filter(function(m:any){return m.connected}).map(function(m:any){return '<option value="'+esc(m.id)+'"'+(c.model===m.id?' selected':'')+'>'+esc(m.name)+'</option>'}).join('')+'</select>'
+   +'<span class="hint">'+(c.model==='auto'?esc(rec.why)+(c.ids.length>1?' Each agent gets its own recommendation.':''):'Your choice. The recommendation would be '+esc(mn(rec.id))+'.')+'</span></div>';
+  h+='<div class="fld"><label>Helper agents (subagents) for this task</label><p class="hint">Cheapest model that is accurate enough comes first. Tick the ones you want, change a model if you like. Skills may later do some of this work for less.</p><div class="subs">'
+   +c.subs.map(function(x:any,i:number){return '<div class="sub-row"><label><input type="checkbox" data-asub="'+i+'"'+(x.on?' checked':'')+'> <b>'+esc(x.name)+'</b> <small class="hint">'+esc(x.task)+(x.agentId?' · existing agent':'')+'</small></label><select data-asubm="'+i+'" aria-label="Model for '+esc(x.name)+'">'+L.filter(function(m:any){return m.connected||m.id===x.model}).map(function(m:any){return '<option value="'+esc(m.id)+'"'+(x.model===m.id?' selected':'')+'>'+esc(m.name)+'</option>'}).join('')+'</select><small class="hint">'+esc(x.why)+'</small></div>'}).join('')+'</div></div>';
+  h+='</details>';
+  return h;
 }
 function addTaskHTML(){
   var c=S.at;if(!c)return '';
-  var tm=teamIndex(),q=String(c.q||'').toLowerCase();
+  var tm=teamIndex(),q=String(c.q||'').toLowerCase(),a=atFirst(),E=ext(),L=modelList();
   var shown=S.agents.slice().sort(function(a:any,b:any){return String(tm[a.id]||'').localeCompare(String(tm[b.id]||''))||String(a.name).localeCompare(String(b.name))}).filter(function(a:any){return !q||(a.name+' '+(tm[a.id]||'')).toLowerCase().indexOf(q)>=0});
-  var h='<div class="scrim" data-act="task-close"></div><div class="modal" role="dialog" aria-label="Add a task"><div class="modal-head"><h2>Add a task</h2><p>'+(c.ids.length===1?'For '+esc((S.agents.filter(function(a:any){return a.id===c.ids[0]})[0]||{}).name||'one agent'):c.ids.length?'For '+c.ids.length+' agents':'Choose who it is for')+'</p></div><div class="modal-body">';
+  var lead=a&&isLeaderT(a),rec=recommendModel(c.text,atModels(),!!lead);
+  var h='<div class="scrim" data-act="task-close"></div><div class="modal wide" role="dialog" aria-label="Add a task"><div class="modal-head"><h2>Add a task</h2><p>'+(c.ids.length===1?'For '+esc(a&&a.name||'one agent'):c.ids.length?'For '+c.ids.length+' agents':'Choose who it is for')+'</p></div><div class="modal-body">';
   h+='<div class="fld"><label for="at-text">What needs doing</label><textarea id="at-text" rows="3" data-atf="text" placeholder="For example Review the open pull requests">'+esc(c.text)+'</textarea></div>'
-   +'<div class="fld"><label for="at-due">Due date (optional)</label><input type="date" id="at-due" data-atf="due" value="'+esc(c.due)+'"></div>'
-   +'<div class="fld"><label for="at-state">Start as</label><select id="at-state" data-atf="state"><option value="todo"'+(c.state==='todo'?' selected':'')+'>Queued (not started)</option><option value="doing"'+(c.state==='doing'?' selected':'')+'>Running (already started)</option></select></div>'
-   +'<div class="fld"><label for="at-note">Note (optional)</label><input type="text" id="at-note" data-atf="note" value="'+esc(c.note)+'" placeholder="Anything the agent should know"></div>'
-   +'<div class="fld"><label for="at-q">Who is it for? <span class="hint">'+c.ids.length+' chosen</span></label><input type="text" id="at-q" data-atq placeholder="Search by name or team" value="'+esc(c.q)+'"><div class="pickbox">'
-   +(shown.map(function(a:any){return '<label><input type="checkbox" data-atid="'+esc(a.id)+'"'+(c.ids.indexOf(a.id)>=0?' checked':'')+'> '+esc(a.name)+' <small class="hint">'+esc(tm[a.id]||'')+'</small></label>'}).join('')||'<span class="hint">No one matches.</span>')+'</div>'
-   +'<div class="ctlbtns"><button class="btn small" data-act="task-all">Select everyone shown</button><button class="btn small" data-act="task-none">Clear</button></div></div>'
-   +'<p class="hint">Each agent gets its own copy to track. To give one task to a project or team and widen or narrow it later, use Capabilities, Shared items.</p></div>'
+   +'<div class="two"><div class="fld"><label for="at-due">Due date (optional)</label><input type="date" id="at-due" data-atf="due" value="'+esc(c.due)+'"></div>'
+   +'<div class="fld"><label for="at-pri">Priority</label><select id="at-pri" data-atf="priority">'+['Low','Normal','High','Urgent'].map(function(o){return '<option'+(c.priority===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
+   +'<div class="two"><div class="fld"><label for="at-state">Start as</label><select id="at-state" data-atf="state"><option value="todo"'+(c.state==='todo'?' selected':'')+'>Queued (not started)</option><option value="doing"'+(c.state==='doing'?' selected':'')+'>Running (already started)</option></select></div>'
+   +'<div class="fld"><label for="at-note">Note (optional)</label><input type="text" id="at-note" data-atf="note" value="'+esc(c.note)+'" placeholder="Anything the agent should know"></div></div>'
+   +'<div class="fld"><label for="at-done">Done when (optional)</label><input type="text" id="at-done" data-atf="done" value="'+esc(c.done)+'" placeholder="How you will know it is finished"></div>';
+  h+='<div class="fld"><label for="at-q">Who is it for? <span class="hint">'+c.ids.length+' chosen</span></label><input type="text" id="at-q" data-atq placeholder="Search by name or team" value="'+esc(c.q)+'"><div class="pickbox">'
+   +(shown.map(function(a:any){return '<label><input type="checkbox" data-atid="'+esc(a.id)+'"'+(c.ids.indexOf(a.id)>=0?' checked':'')+'> '+esc(a.name)+' <small class="hint">'+esc(tm[a.id]||'')+(isLeaderT(a)?' · own brain':'')+'</small></label>'}).join('')||'<span class="hint">No one matches.</span>')+'</div>'
+   +'<div class="ctlbtns"><button class="btn small" data-act="task-all">Select everyone shown</button><button class="btn small" data-act="task-none">Clear</button></div></div>';
+  h+=atPlanHTML();
+  h+='<p class="hint">Each agent gets its own copy to track. These choices are recorded on the task and told to the agent in chat. They do not change the real role files or start any run.</p></div>'
    +'<div class="modal-foot"><button class="btn" data-act="task-close">Cancel</button><button class="btn primary" data-act="task-add">Add task'+(c.ids.length>1?' to '+c.ids.length+' agents':'')+'</button></div></div>';
   return h;
 }
@@ -1119,11 +1185,16 @@ function taskAdd(){
   var c=S.at;if(!c)return;
   if(!String(c.text).trim()){toast('Write the task');return}
   if(!c.ids.length){toast('Choose who it is for');return}
-  var now=Date.now(),n=0;
+  var now=Date.now(),n=0,subs=c.subs.filter(function(x:any){return x.on}).map(function(x:any){return {name:x.name,agentId:x.agentId,model:x.model,why:x.why}});
   c.ids.forEach(function(id:any){
     var a=S.agents.filter(function(x:any){return x.id===id})[0];if(!a)return;
-    var t:any={text:String(c.text).trim(),status:c.state==='doing'?'doing':'todo',addedBy:'founder',updatedAt:now};
-    if(c.due)t.due=c.due;if(String(c.note).trim())t.note=String(c.note).trim();
+    var r=recommendModel(c.text,atModels(),isLeaderT(a)),model=c.model==='auto'?r.id:c.model,why=c.model==='auto'?r.why:'Chosen by you.';
+    var plan:any={priority:c.priority,tools:c.tools.slice(),skills:c.skills.slice(),plugins:c.plugins.slice(),memory:c.memory.slice(),model:model,modelWhy:why,subs:subs.filter(function(x:any){return x.agentId!==id})};
+    if(String(c.done).trim())plan.done=String(c.done).trim();
+    var t:any={text:String(c.text).trim(),status:c.state==='doing'?'doing':'todo',addedBy:'founder',updatedAt:now,plan:plan};
+    if(c.due)t.due=c.due;
+    var nt=[c.priority!=='Normal'?c.priority+' priority':'','Model '+mn(model),plan.subs.length?'Helpers: '+plan.subs.map(function(x:any){return x.name}).join(', '):'',String(c.note).trim()].filter(Boolean).join(' · ');
+    if(nt)t.note=nt;
     a.todos=(a.todos||[]).concat([t]);persist('agents',a.id,a);n++;
   });
   S.at=null;render();toast('Added to '+n+' agent'+(n===1?'':'s'));
@@ -1148,7 +1219,9 @@ function progressHeader(){
     if(S.pgConfirm)h+='<p><b>'+(S.pgConfirm==='pause'?'Pause every agent?':'Let every agent run again?')+'</b> This changes the real label on GitHub.</p><div class="ctlbtns"><button class="btn small primary" data-act="pg-do" data-what="'+esc(S.pgConfirm)+'">'+(S.pgConfirm==='pause'?'Yes, pause all':'Yes, resume all')+'</button><button class="btn small" data-act="pg-cancel">Cancel</button></div>';
     else h+='<div class="ctlbtns"><button class="btn small'+(c.paused?' primary':'')+'" data-act="pg-ask" data-what="'+(c.paused?'resume':'pause')+'">'+(c.paused?'Resume all agents':'Pause all agents')+'</button></div>';
   }
-  h+='<p class="hint">This is the switch the agents check. The Pause, Rest and Revoke buttons on each person only record your decision.</p></div>';
+  var pa=(c&&c.agents)||[];
+  if(pa.length)h+='<p class="hint">Paused one by one on GitHub: '+esc(pa.join(', '))+'</p>';
+  h+='<p class="hint">"Pause all" is the switch the agents check today. Pause, Rest and Revoke on a person also set a label <span class="mono">agent-paused:name</span> on the same issue, so the decision is on GitHub. An agent only stops for it once its role file says to look for that label.</p></div>';
   // the ticket feed
   h+='<div class="pg-card"><h3>Ticket status from GitHub</h3>';
   if(!S.canFeed)h+='<p class="hint">Not connected. The numbers are the snapshot of '+esc((S.report&&S.report.asOf)||'the last import')+'.</p>';
@@ -1707,7 +1780,10 @@ var EF=[['name','Name','text'],['role','Title line','text'],['level','Level','le
 function editFields(a){
   var f={},o=modelOf(a);
   EF.forEach(function(x){var k=x[0],v=a[k];f[k]=Array.isArray(v)?(k==='tools'?v.join(', '):v.join('\n')):(v==null?'':String(v))});
-  f.model=o.nowId;f.modelPlanned=o.propId;return f;
+  f.model=o.nowId;f.modelPlanned=o.propId;f.brain=JSON.parse(JSON.stringify(brainOf(a)));return f;
+}
+function brainBox(b:any,pre:string){
+  return '<div class="fld"><label><input type="checkbox" data-'+pre+'="own"'+(b.own?' checked':'')+'> Gets its own brain <span class="hint">its own memory, not shared with other agents. Leads such as the CTO and Chief of Staff have it by default.</span></label></div><div class="fld"><label>Memory it keeps</label><div class="checks">'+MEMORY_OPTIONS.map(function(o:any,i:number){var id=pre+'-m-'+i;return '<label for="'+id+'"><input type="checkbox" id="'+id+'" data-'+pre+'m="1" value="'+esc(o)+'"'+(b.memory.indexOf(o)>=0?' checked':'')+'>'+esc(o)+'</label>'}).join('')+'</div></div><div class="fld"><label for="'+pre+'-note">Memory note (optional)</label><input type="text" id="'+pre+'-note" data-'+pre+'="note" value="'+esc(b.note||'')+'" placeholder="For example Keep decisions for 90 days"></div>';
 }
 function editHTML(){
   var e=S.edit,a=e&&S.agents.filter(function(x){return x.id===e.id})[0];if(!a)return '';
@@ -1722,9 +1798,11 @@ function editHTML(){
   });
   h+='<div class="fld"><label for="ef-model">Model now</label><select id="ef-model" data-ef="model">'+modelOpts(e.f.model,'Not set')+'</select></div>'
    +'<div class="fld"><label for="ef-modelPlanned">Model planned</label><select id="ef-modelPlanned" data-ef="modelPlanned">'+modelOpts(e.f.modelPlanned,'Not set')+'</select><span class="hint">Models that are not connected cannot be chosen. Connect them under Connections.</span></div>'
+   +'<h3 style="margin-top:10px">Brain and memory</h3>'+brainBox(e.f.brain,'eb')
    +'<p class="hint">If you rename this agent, update Reports to on the agents that report to it: they match by name. This edits the record on this page, not the role file in the repo.</p></div></aside>';
   return h;
 }
+function lines(v:any){return String(v==null?'':v).split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean)}
 function saveEdit(){
   var e=S.edit;if(!e)return;var f=e.f;
   if(!String(f.name||'').trim()){toast('Name is required');return}
@@ -1733,6 +1811,7 @@ function saveEdit(){
     ['responsibilities','may','mustNot','requirements'].forEach(function(k){a[k]=lines(f[k])});
     a.tools=String(f.tools||'').split(',').map(function(x){return x.trim()}).filter(Boolean);
     a.model=f.model||'';a.modelPlanned=f.modelPlanned||'';
+    if(f.brain)a.brain={own:!!f.brain.own,memory:f.brain.memory.slice(),note:String(f.brain.note||'').trim()};
   });
   S.edit=null;render();toast('Saved');
 }
@@ -1756,7 +1835,7 @@ function guardLines0(a: any): string[] { var g=appliedTo(a),o: string[]=[]; if(a
 setInterval(function(){
   if(!S.loaded)return;
   var ch=false;
-  S.agents.forEach(function(a:any){if(restExpired(a)){a.status='active';delete a.restUntil;logStatus(a,'active','Rest ended');persist('agents',a.id,a);ch=true}});
+  S.agents.forEach(function(a:any){if(restExpired(a)){a.status='active';delete a.restUntil;logStatus(a,'active','Rest ended');persist('agents',a.id,a);syncPause(a);ch=true}});
   if(ch){render();toast('A rest ended. The agent is active again.')}
   else if(S.agents.some(function(a:any){return a.status==='resting'})&&!S.ctl&&!S.edit&&!S.chat&&!S.wizard&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render();
 },30000);
@@ -1788,7 +1867,7 @@ render();
     S.chats=m;if(S.chat)render();
   },function(){});
   DB.doc('meta/ext').onSnapshot(function(d:any){S.ext=d.exists?clone(d.data()):null;render()},function(){});
-  DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;render()},function(){});
+  DB.doc('meta/models').onSnapshot(function(d:any){S.models=d.exists?clone(d.data()):null;if(S.models&&S.models.list&&!S.models.haikuAdded&&!S.models.list.some(function(m:any){return m.id==='haiku55'})){S.models.list.push(clone(DEFAULT_MODELS.filter(function(m:any){return m.id==='haiku55'})[0]));S.models.haikuAdded=true;persistModels()}render()},function(){});
   DB.doc('meta/feed').onSnapshot(function(d:any){S.feed=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/report').onSnapshot(function(d:any){S.report=d.exists?clone(d.data()):null;render()},function(){});
   DB.doc('meta/repos').onSnapshot(function(d:any){
