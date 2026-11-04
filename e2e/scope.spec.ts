@@ -70,12 +70,12 @@ test('shared todo: widen, leave one out, narrow; give and remove on a person; ad
   const ap = page.locator('.ap');
   await expect(ap).toContainText('Never log content');
   await ap.locator('li', { hasText: 'Never log content' }).getByRole('button').click();
-  await expect(page.locator('.ap-l')).not.toContainText('Never log content');
+  await expect(ap.locator('li', { hasText: 'Never log content' })).toHaveCount(0);
   const ext = async () => ((await (await page.request.get('/api/db/meta/ext')).json()) as any).data;
   await expect.poll(async () => (await ext()).rules.find((r: any) => /Never log content/.test(r.text)).scope.except).toContain(CTO);
   const v = await page.locator(`#gv-${CTO} option`, { hasText: 'Never log content' }).getAttribute('value');
   await page.selectOption(`#gv-${CTO}`, v!);
-  await expect(page.locator('.ap-l')).toContainText('Never log content');
+  await expect(ap.locator('li', { hasText: 'Never log content' })).toHaveCount(1);
 
   // Add skills from a downloaded zip: one skill, one plugin whose skills are not listed twice.
   await page.click('.tab[data-tab="caps"]');
@@ -97,7 +97,20 @@ test('shared todo: widen, leave one out, narrow; give and remove on a person; ad
   await page.click('[data-act="pkg-add"]');
   await expect(page.locator('#toast')).toContainText('Added 3');
   await expect(page.locator('.cd', { hasText: 'toolbox' })).toContainText('version 2.0.0');
-  await expect.poll(async () => (await ext()).items.length).toBe(3);
+  await expect.poll(async () => (await ext()).items.length).toBe(6);
   const items = (await ext()).items;
   expect(JSON.stringify(items)).not.toMatch(/ghp_not_a_real_token|npx/);
+});
+
+test('starter plugins show as loaded by default on every agent', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('#password', 'e2e-password-not-real');
+  await page.click('button[type=submit]');
+  await page.click('.tab[data-tab="g:people"]');
+  await page.click(`[data-act="dirsel"][data-id="${CTO}"]`);
+  const ap = page.locator('.ap');
+  await expect(ap).toContainText('Loaded by default');
+  await expect(ap).toContainText('Model routing');
+  await expect(ap).toContainText('Context compaction');
+  await expect(ap).toContainText('Memory manager');
 });
